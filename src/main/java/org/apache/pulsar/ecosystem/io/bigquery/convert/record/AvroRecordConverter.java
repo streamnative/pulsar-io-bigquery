@@ -1,0 +1,250 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.ecosystem.io.bigquery.convert.record;
+
+import com.google.cloud.bigquery.storage.v1.ProtoRows;
+import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.Descriptors;
+import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.UninitializedMessageException;
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.ecosystem.io.bigquery.convert.DefaultSystemFieldConvert;
+import org.apache.pulsar.ecosystem.io.bigquery.convert.logicaltype.AvroLogicalFieldConvert;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.RecordConvertException;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.shade.org.apache.avro.Schema;
+import org.apache.pulsar.shade.org.apache.avro.generic.GenericData;
+import org.apache.pulsar.shade.org.apache.avro.util.Utf8;
+
+/**
+ * avro record converter.
+ */
+@Slf4j
+public class AvroRecordConverter implements RecordConverter {
+
+    private AvroLogicalFieldConvert logicalFieldConvert;
+
+    public AvroRecordConverter() {
+        logicalFieldConvert = new AvroLogicalFieldConvert();
+    }
+
+    @Override
+    public ProtoRows convertRecord(Record<GenericRecord> record, Descriptors.Descriptor protoSchema,
+                                   List<TableFieldSchema> tableFieldSchema) throws RecordConvertException {
+        GenericRecord genericRecord = record.getValue();
+        DynamicMessage dynamicMessage = convert(
+                record,
+                (org.apache.pulsar.shade.org.apache.avro.generic.GenericRecord) genericRecord.getNativeObject(),
+                protoSchema, tableFieldSchema);
+        ProtoRows.Builder rowsBuilder = ProtoRows.newBuilder();
+        rowsBuilder.addSerializedRows(dynamicMessage.toByteString());
+        return rowsBuilder.build();
+    }
+
+    private DynamicMessage convert(Record<GenericRecord> record,
+                                   org.apache.pulsar.shade.org.apache.avro.generic.GenericRecord nativeRecord,
+                                   Descriptors.Descriptor protoDescriptor,
+                                   List<TableFieldSchema> tableFieldSchema) throws RecordConvertException {
+        DynamicMessage.Builder protoMsg = DynamicMessage.newBuilder(protoDescriptor);
+        for (Descriptors.FieldDescriptor pbField : protoDescriptor.getFields()) {
+            TableFieldSchema fieldSchema = tableFieldSchema.get(pbField.getIndex());
+            String fieldName = fieldSchema.getName();
+            if (record != null && DefaultSystemFieldConvert.isSystemField(fieldName)) {
+                try {
+                    Object convert = DefaultSystemFieldConvert.convert(fieldName, record);
+                    protoMsg.setField(pbField, convert);
+                } catch (Exception e) {
+                    log.warn("Not found field <{}> by records, ignore this field", fieldName);
+                    continue;
+                }
+            } else if (fieldName.equals(DefaultSystemFieldConvert.USER_FIELD_NAME)) {
+                DynamicMessage userProtoMsg = convert(nativeRecord,
+                        pbField.getMessageType(), fieldSchema.getFieldsList());
+                protoMsg.setField(pbField, userProtoMsg);
+            }
+        }
+        return buildMessage(protoMsg);
+    }
+
+    private DynamicMessage convert(org.apache.pulsar.shade.org.apache.avro.generic.GenericRecord nativeRecord,
+                                   Descriptors.Descriptor protoDescriptor,
+                                   List<TableFieldSchema> tableFieldSchema) throws RecordConvertException {
+        DynamicMessage.Builder protoMsg = DynamicMessage.newBuilder(protoDescriptor);
+
+        List<String> pulsarFields = nativeRecord.getSchema().getFields().
+                stream().map(field -> field.name()).collect(Collectors.toList());
+        Schema avroSchema = nativeRecord.getSchema();
+        for (Descriptors.FieldDescriptor pbField : protoDescriptor.getFields()) {
+            TableFieldSchema fieldSchema = tableFieldSchema.get(pbField.getIndex());
+            String fieldName = fieldSchema.getName();
+            Object value;
+            Schema avroFieldSchema;
+            try {
+                value = nativeRecord.get(fieldName);
+                avroFieldSchema = avroSchema.getField(fieldName).schema();
+            } catch (Exception e) {
+                log.warn("Not found field <{}> by avro data, ignore this field", fieldName);
+                continue;
+            }
+            if (pbField.isRepeated()) {
+                fillRepeatedField(protoMsg, avroFieldSchema, value, pbField, fieldSchema);
+            } else {
+                fillField(protoMsg, avroFieldSchema, value, pbField, fieldSchema);
+            }
+            pulsarFields.remove(fieldName);
+        }
+        if (!pulsarFields.isEmpty()) {
+            throw new RecordConvertException("Convert exception, "
+                    + "pulsar have some field not found by big query: "
+                    + pulsarFields);
+        }
+        return buildMessage(protoMsg);
+    }
+
+    private void fillRepeatedField(DynamicMessage.Builder protoMsg, Schema avroFieldSchema, Object value,
+                                   Descriptors.FieldDescriptor pbFieldDescriptor,
+                                   TableFieldSchema tableFieldSchema) throws RecordConvertException {
+        if (value instanceof Map<?, ?>) {
+            Map<?, ?> map = (HashMap<?, ?>) value;
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                Object mapKey = entry.getKey();
+                Object mapValue = entry.getValue();
+                Descriptors.Descriptor mapDescriptor = pbFieldDescriptor.getMessageType();
+                DynamicMessage.Builder mapPbMsg = DynamicMessage.newBuilder(mapDescriptor);
+                Descriptors.FieldDescriptor keyDescriptor = mapDescriptor.
+                        findFieldByName(DefaultSystemFieldConvert.MAP_KEY_NAME);
+                Descriptors.FieldDescriptor valueDescriptor = mapDescriptor.
+                        findFieldByName(DefaultSystemFieldConvert.MAP_VALUE_NAME);
+                TableFieldSchema keyFieldSchema = tableFieldSchema.getFields(keyDescriptor.getIndex());
+                TableFieldSchema valueFieldSchema = tableFieldSchema.getFields(valueDescriptor.getIndex());
+                // Map key type is string, Array if key is not equal to string
+                fillField(mapPbMsg, Schema.create(Schema.Type.STRING), mapKey, keyDescriptor, keyFieldSchema);
+                fillField(mapPbMsg, pickSchema(avroFieldSchema).getValueType(),
+                        mapValue, valueDescriptor, valueFieldSchema);
+                protoMsg.addRepeatedField(pbFieldDescriptor, buildMessage(mapPbMsg));
+            }
+            map.forEach((mapKey, mapValue) -> {
+            });
+        } else if (value instanceof GenericData.Array) {
+            // list and set
+            GenericData.Array array = (GenericData.Array) value;
+            for (Object arrayObject : array) {
+                fillField(protoMsg, pickSchema(avroFieldSchema).getElementType(),
+                        arrayObject, pbFieldDescriptor, tableFieldSchema);
+            }
+        } else {
+            throw new RecordConvertException("Not support repeated type: " + value.getClass());
+        }
+    }
+
+
+    private void fillField(DynamicMessage.Builder protoMsg, Schema avroFieldSchema, Object value,
+                           Descriptors.FieldDescriptor pbFieldDescriptor, TableFieldSchema tableFieldSchema)
+            throws RecordConvertException {
+        avroFieldSchema = pickSchema(avroFieldSchema);
+        TableFieldSchema.Type type = tableFieldSchema.getType();
+        if (avroFieldSchema.getLogicalType() != null
+                && logicalFieldConvert.isLogicType(avroFieldSchema.getLogicalType())) {
+            log.debug("Convert logical type " + avroFieldSchema);
+            protoMsg.setField(pbFieldDescriptor,
+                    logicalFieldConvert.convertFieldValue(avroFieldSchema.getLogicalType(), value));
+        } else {
+            switch (type) {
+                case STRING:
+                case BOOL:
+                case DOUBLE:
+                case BYTES:
+                case INT64:
+                    if (value instanceof Utf8) {
+                        appendField(protoMsg, pbFieldDescriptor, ((Utf8) value).toString());
+                        return;
+                    }
+                    if (value instanceof Integer) {
+                        appendField(protoMsg, pbFieldDescriptor, ((Integer) value).longValue());
+                        return;
+                    }
+                    if (value instanceof ByteBuffer) {
+                        appendField(protoMsg, pbFieldDescriptor, ByteString.copyFrom((ByteBuffer) value));
+                        return;
+                    }
+                    if (value instanceof Float) {
+                        appendField(protoMsg, pbFieldDescriptor, ((Float) value).doubleValue());
+                        return;
+                    }
+                    appendField(protoMsg, pbFieldDescriptor, value);
+                    return;
+                case STRUCT:
+                    // If type is STRUCT, continue recursion
+                    if (value instanceof org.apache.pulsar.shade.org.apache.avro.generic.GenericRecord) {
+                        appendField(protoMsg, pbFieldDescriptor,
+                                convert((org.apache.pulsar.shade.org.apache.avro.generic.GenericRecord) value,
+                                        pbFieldDescriptor.getMessageType(), tableFieldSchema.getFieldsList()));
+                        return;
+                    }
+                    break;
+            }
+            throw new RecordConvertException(
+                    String.format("Not support type <%s> valueClass <%s>", type, value.getClass()));
+        }
+    }
+
+    private void appendField(DynamicMessage.Builder protoMsg,
+                             Descriptors.FieldDescriptor pbFieldDescriptor, Object value) {
+        if (pbFieldDescriptor.isRepeated()) {
+            protoMsg.addRepeatedField(pbFieldDescriptor, value);
+        } else {
+            protoMsg.setField(pbFieldDescriptor, value);
+        }
+    }
+
+
+    /**
+     * Union types require special handling refer to the usage documentation.
+     * Reference avro docs: https://avro.apache.org/docs/current/spec.html#Unions
+     *
+     * @param avroFieldSchema
+     * @return
+     */
+    private Schema pickSchema(Schema avroFieldSchema) {
+        if (avroFieldSchema.isUnion()) {
+            avroFieldSchema = avroFieldSchema.getTypes().get(1);
+        }
+        return avroFieldSchema;
+    }
+
+    private DynamicMessage buildMessage(DynamicMessage.Builder protoMsg) throws RecordConvertException {
+        try {
+            return protoMsg.build();
+        } catch (UninitializedMessageException e) {
+            String errorMsg = e.getMessage();
+            int idxOfColon = errorMsg.indexOf(":");
+            String missingFieldName = errorMsg.substring(idxOfColon + 2);
+            throw new RecordConvertException(
+                    String.format(
+                            "Avro does not have the required field %s.%s.", "todo", missingFieldName));
+        }
+    }
+}
