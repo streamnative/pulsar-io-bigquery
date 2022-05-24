@@ -67,6 +67,7 @@ public class BigQuerySinkAllTestNew {
         Thread.sleep(1000);
         Record<GenericRecord> record2 = getGenericRecordRecord2();
         bigQuerySink.write(record2);
+        bigQuerySink.close();
     }
 
 

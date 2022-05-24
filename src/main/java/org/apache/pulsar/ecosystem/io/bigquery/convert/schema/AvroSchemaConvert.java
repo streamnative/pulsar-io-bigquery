@@ -20,11 +20,9 @@ package org.apache.pulsar.ecosystem.io.bigquery.convert.schema;
 
 import static org.apache.pulsar.ecosystem.io.bigquery.convert.DefaultSystemFieldConvert.MAP_KEY_NAME;
 import static org.apache.pulsar.ecosystem.io.bigquery.convert.DefaultSystemFieldConvert.MAP_VALUE_NAME;
-import static org.apache.pulsar.ecosystem.io.bigquery.convert.DefaultSystemFieldConvert.USER_FIELD_NAME;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.StandardSQLTypeName;
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -72,9 +70,7 @@ public class AvroSchemaConvert extends AbstractSchemaConvert {
         for (org.apache.pulsar.shade.org.apache.avro.Schema.Field field : schema.getFields()) {
             userField.add(convertField(field.name(), field.schema()).get().build());
         }
-        Field field = Field.newBuilder(USER_FIELD_NAME,
-                StandardSQLTypeName.STRUCT, FieldList.of(userField)).setMode(Field.Mode.NULLABLE).build();
-        return Lists.newArrayList(field);
+        return userField;
     }
 
     private Optional<Field.Builder> convertField(String fieldName,
