@@ -30,7 +30,6 @@ import org.apache.pulsar.functions.api.Record;
  */
 public final class DefaultSystemFieldConvert {
 
-    public static final String USER_FIELD_NAME = "__value";
     public static final String MAP_KEY_NAME = "key";
     public static final String MAP_VALUE_NAME = "value";
     private static final Map<String, StandardSQLTypeName> defaultFieldTypeMapping = new HashMap<>();
@@ -74,7 +73,7 @@ public final class DefaultSystemFieldConvert {
             case "__partition__":
                 return record.getPartitionIndex().get();
             case "__event_time__":
-                return record.getEventTime().get();
+                return record.getEventTime().get() * 1000;
             case "__publish_time__":
                 return record.getMessage().get().getPublishTime();
             case "__message_id__":

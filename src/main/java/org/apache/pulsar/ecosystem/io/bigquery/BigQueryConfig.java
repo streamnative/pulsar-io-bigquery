@@ -18,16 +18,26 @@
  */
 package org.apache.pulsar.ecosystem.io.bigquery;
 
-import com.google.common.collect.Lists;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
+import com.google.cloud.bigquery.storage.v1.BigQueryWriteSettings;
+import com.google.common.collect.Sets;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import lombok.AllArgsConstructor;
+import java.util.Set;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 import org.apache.pulsar.shade.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pulsar.shade.com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
@@ -35,33 +45,103 @@ import org.apache.pulsar.shade.com.fasterxml.jackson.dataformat.yaml.YAMLFactory
  * Big query config.
  */
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class BigQueryConfig {
+public class BigQueryConfig implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
+    @FieldDoc(required = true,
+            defaultValue = "",
+            help = "projectId is BigQuery project id")
     private String projectId;
 
+    @FieldDoc(required = true,
+            defaultValue = "",
+            help = "datasetName is BigQuery dataset name")
     private String datasetName;
 
+    @FieldDoc(required = true,
+            defaultValue = "",
+            help = "tableName is BigQuery table name")
     private String tableName;
 
+    @FieldDoc(required = false,
+            defaultValue = "false",
+            help = "Create a partitioned table when the table is automatically created,"
+                    + "it will use __message_id__ the partition key.")
     private boolean partitionedTables;
 
+    @FieldDoc(required = false,
+            defaultValue = "7",
+            help = "clusteredTableIntervalDay is number of days between partitioning of the partitioned table")
+    private int partitionedTableIntervalDay;
+
+    @FieldDoc(required = false,
+            defaultValue = "false",
+            help = "Create a clusteredTables table when the table is automatically created,"
+                    + "it will use __event_time__ the partition key.")
     private boolean clusteredTables;
 
+    @FieldDoc(required = false,
+            defaultValue = "false",
+            help = "Automatically create table when table does not exist")
     private boolean autoCreateTable;
 
+    @FieldDoc(required = false,
+            defaultValue = "false",
+            help = "Automatically update table schema when table schema is incompatible")
     private boolean autoUpdateTable;
 
+    @FieldDoc(required = false,
+            defaultValue = "",
+            help = "Create system fields when the table is automatically created, separate multiple fields with commas."
+                    + " The supported system fields are: __schema_version__ , __partition__ , __event_time__ ,"
+                    + " __publish_time__ , __message_id__ , __sequence_id__ , __producer_name__")
     private String defaultSystemField;
 
+    @FieldDoc(required = false,
+            defaultValue = "",
+            help = "Authentication key, use the environment variable to get the key when key is empty."
+                + " Key acquisition reference: \n"
+                + "https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries#before-you-begin")
+    private String keyJson;
 
     public List<String> getDefaultSystemField() {
-        return Optional.ofNullable(defaultSystemField)
-                .map(field -> Lists.newArrayList(defaultSystemField.split(",")))
-                .orElse(new ArrayList<>());
+        Set<String> fields = Optional.ofNullable(defaultSystemField)
+                .map(field -> Sets.newHashSet(defaultSystemField.split(",")))
+                .orElse(new HashSet<>());
+        if (clusteredTables) {
+            fields.add("__event_time__");
+        }
+        if (partitionedTables) {
+            fields.add("__message_id__");
+        }
+        return new ArrayList<>(fields);
     }
 
+    public BigQuery createBigQuery() throws IOException {
+        if (!StringUtils.isEmpty(keyJson)) {
+            return BigQueryOptions.newBuilder().setCredentials(getGoogleCredentials()).build().getService();
+        } else {
+            return BigQueryOptions.getDefaultInstance().getService();
+        }
+    }
+
+    public BigQueryWriteClient createBigQueryWriteClient() throws IOException {
+        if (!StringUtils.isEmpty(keyJson)) {
+            BigQueryWriteSettings settings =
+                    BigQueryWriteSettings.newBuilder().setCredentialsProvider(() -> getGoogleCredentials()).build();
+            return BigQueryWriteClient.create(settings);
+        } else {
+            return BigQueryWriteClient.create();
+        }
+
+    }
+
+    private GoogleCredentials getGoogleCredentials() throws IOException {
+        GoogleCredentials googleCredentials = GoogleCredentials
+                .fromStream(new ByteArrayInputStream(keyJson.getBytes(StandardCharsets.UTF_8)));
+        return googleCredentials;
+    }
 
     public static BigQueryConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

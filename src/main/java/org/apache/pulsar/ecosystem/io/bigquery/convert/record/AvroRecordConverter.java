@@ -66,7 +66,9 @@ public class AvroRecordConverter extends AbstractRecordConvert {
                 value = avroNativeRecord.get(fieldName);
                 avroFieldSchema = avroSchema.getField(fieldName).schema();
             } catch (Exception e) {
-                log.warn("Not found field <{}> by avro data, ignore this field", fieldName);
+                if (!DefaultSystemFieldConvert.isSystemField(fieldName)) {
+                    log.warn("Not found field <{}> by avro data, ignore this field", fieldName);
+                }
                 continue;
             }
             if (pbField.isRepeated()) {

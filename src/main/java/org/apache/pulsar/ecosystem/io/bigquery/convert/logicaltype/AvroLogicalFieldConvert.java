@@ -43,7 +43,7 @@ public class AvroLogicalFieldConvert implements LogicalFieldConvert<LogicalType>
     public AvroLogicalFieldConvert() {
         logicalFields = new HashMap<>();
         logicalFields.put(LogicalTypes.Date.class, TableFieldSchema.Type.DATE);
-        // TODO support NUMERIC and BIGNUMRIC, TimeMillis
+        // TODO support NUMERIC and BIGNUMRIC
         logicalFields.put(LogicalTypes.Decimal.class, TableFieldSchema.Type.BIGNUMERIC);
         logicalFields.put(LogicalTypes.LocalTimestampMillis.class, TableFieldSchema.Type.DATETIME);
         logicalFields.put(LogicalTypes.LocalTimestampMicros.class, TableFieldSchema.Type.DATETIME);

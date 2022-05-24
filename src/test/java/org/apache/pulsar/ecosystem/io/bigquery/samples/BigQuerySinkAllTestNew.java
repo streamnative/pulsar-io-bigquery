@@ -57,6 +57,9 @@ public class BigQuerySinkAllTestNew {
         sinkConfig.put("tableName", "all_table");
         sinkConfig.put("autoCreateTable", true);
         sinkConfig.put("autoUpdateTable", true);
+        sinkConfig.put("clusteredTables", true);
+        sinkConfig.put("partitionedTables", true);
+        sinkConfig.put("partitionedTableIntervalDay", 10);
         sinkConfig.put("defaultSystemField", "__event_time__");
         bigQuerySink.open(sinkConfig, null);
 

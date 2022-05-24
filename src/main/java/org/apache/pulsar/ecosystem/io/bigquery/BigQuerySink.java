@@ -72,7 +72,7 @@ public class BigQuerySink implements Sink<GenericRecord> {
         Objects.requireNonNull(bigQueryConfig.getDatasetName(), "BigQuery dataset id is not set");
         Objects.requireNonNull(bigQueryConfig.getTableName(), "BigQuery table name id is not set");
 
-        this.client = BigQueryWriteClient.create();
+        this.client = bigQueryConfig.createBigQueryWriteClient();
         this.tableName = TableName.of(bigQueryConfig.getProjectId(),
                 bigQueryConfig.getDatasetName(), bigQueryConfig.getTableName());
         this.recordConverter = new RecordConverterHandler();

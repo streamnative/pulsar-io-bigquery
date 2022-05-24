@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.ecosystem.io.bigquery.samples;
 
-import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryOptions;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.Data;
@@ -36,28 +35,26 @@ import org.apache.pulsar.functions.api.Record;
  */
 public class SchemaManagerTest {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         SchemaManagerTest schemaManagerTest = new SchemaManagerTest();
         schemaManagerTest.testCreateTable();
     }
 
-    public void testCreateTable() {
-        BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+    public void testCreateTable() throws IOException {
         BigQueryConfig bigQueryConfig = new BigQueryConfig();
         bigQueryConfig.setProjectId("affable-ray-226821");
         bigQueryConfig.setDatasetName("testdset");
         bigQueryConfig.setTableName("auto_create");
-        SchemaManager schemaManager = new SchemaManager(bigquery, bigQueryConfig);
+        SchemaManager schemaManager = new SchemaManager(bigQueryConfig);
         schemaManager.createTable(getRecord());
     }
 
-    public void testUpdateTable() {
-        BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+    public void testUpdateTable() throws IOException {
         BigQueryConfig bigQueryConfig = new BigQueryConfig();
         bigQueryConfig.setProjectId("affable-ray-226821");
         bigQueryConfig.setDatasetName("testdset");
         bigQueryConfig.setTableName("test_required");
-        SchemaManager schemaManager = new SchemaManager(bigquery, bigQueryConfig);
+        SchemaManager schemaManager = new SchemaManager(bigQueryConfig);
         schemaManager.updateSchema(getRecord2());
     }
 

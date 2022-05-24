@@ -22,19 +22,22 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
-import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.Clustering;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
-import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.bigquery.TimePartitioning;
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.schema.SchemaConvert;
@@ -57,23 +60,21 @@ public class SchemaManager {
     private final boolean autoCreateTable;
     private final boolean autoUpdateTable;
     private final boolean partitionedTables;
+    private final int partitionedTableIntervalDay;
     private final boolean clusteredTables;
 
     // schema resources
     private Schema currentSchema;
 
-    public SchemaManager(BigQueryConfig bigQueryConfig) {
-        this(BigQueryOptions.getDefaultInstance().getService(), bigQueryConfig);
-    }
-
-    public SchemaManager(BigQuery bigquery, BigQueryConfig bigQueryConfig) {
-        this.bigquery = bigquery;
+    public SchemaManager(BigQueryConfig bigQueryConfig) throws IOException {
+        this.bigquery = bigQueryConfig.createBigQuery();
         this.tableId = TableId.of(
                 bigQueryConfig.getProjectId(), bigQueryConfig.getDatasetName(), bigQueryConfig.getTableName());
         this.defaultSystemField = bigQueryConfig.getDefaultSystemField();
         this.autoCreateTable = bigQueryConfig.isAutoCreateTable();
         this.autoUpdateTable = bigQueryConfig.isAutoUpdateTable();
         this.partitionedTables = bigQueryConfig.isPartitionedTables();
+        this.partitionedTableIntervalDay = bigQueryConfig.getPartitionedTableIntervalDay();
         this.clusteredTables = bigQueryConfig.isClusteredTables();
         this.schemaConvert = new SchemaConvertHandler(defaultSystemField);
 
@@ -110,9 +111,23 @@ public class SchemaManager {
         }
         try {
             Schema schema = schemaConvert.convertSchema(records);
-            // TODO Setting up partitioned and clustered tables
-            TableDefinition tableDefinition = StandardTableDefinition.of(schema);
-            TableInfo tableInfo = TableInfo.newBuilder(tableId, tableDefinition).build();
+            StandardTableDefinition.Builder tableDefinition = StandardTableDefinition.newBuilder()
+                    .setSchema(schema);
+            if (partitionedTables) {
+                TimePartitioning partitioning =
+                        TimePartitioning.newBuilder(TimePartitioning.Type.DAY)
+                                .setField("__event_time__") //  name of column to use for partitioning
+                                .setExpirationMs(TimeUnit.MILLISECONDS.
+                                        convert(partitionedTableIntervalDay, TimeUnit.DAYS))
+                                .build();
+                tableDefinition.setTimePartitioning(partitioning);
+            }
+            if (clusteredTables) {
+                Clustering clustering =
+                        Clustering.newBuilder().setFields(Arrays.asList("__message_id__")).build();
+                tableDefinition.setClustering(clustering);
+            }
+            TableInfo tableInfo = TableInfo.newBuilder(tableId, tableDefinition.build()).build();
             bigquery.create(tableInfo);
             currentSchema = schema;
         } catch (Exception e) {
