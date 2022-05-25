@@ -23,20 +23,20 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteSettings;
-import com.google.common.collect.Sets;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 import org.apache.pulsar.shade.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pulsar.shade.com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -105,17 +105,25 @@ public class BigQueryConfig implements Serializable {
                 + "https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries#before-you-begin")
     private String keyJson;
 
-    public List<String> getDefaultSystemField() {
+    public Set<String> getDefaultSystemField() {
         Set<String> fields = Optional.ofNullable(defaultSystemField)
-                .map(field -> Sets.newHashSet(defaultSystemField.split(",")))
-                .orElse(new HashSet<>());
+                .map(__ -> Arrays.stream(defaultSystemField.split(","))
+                        .map(field -> {
+                            String trim = field.trim();
+                            if (trim.contains(" ")) {
+                                throw new BigQueryConnectorRuntimeException(
+                                        "There cannot be spaces in the field: " + defaultSystemField);
+                            }
+                            return trim;
+                        }).collect(Collectors.toSet())
+                ).orElse(new HashSet<>());
         if (clusteredTables) {
             fields.add("__event_time__");
         }
         if (partitionedTables) {
             fields.add("__message_id__");
         }
-        return new ArrayList<>(fields);
+        return fields;
     }
 
     public BigQuery createBigQuery() throws IOException {

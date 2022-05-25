@@ -28,10 +28,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.logicaltype.AvroLogicalFieldConvert;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.shade.org.apache.avro.LogicalTypes;
 
 
 /**
@@ -56,7 +58,7 @@ public class AvroSchemaConvert extends AbstractSchemaConvert {
         PRIMITIVE_TYPE_MAP.put(org.apache.pulsar.shade.org.apache.avro.Schema.Type.BOOLEAN, StandardSQLTypeName.BOOL);
     }
 
-    public AvroSchemaConvert(List<String> systemFieldNames) {
+    public AvroSchemaConvert(Set<String> systemFieldNames) {
         super(systemFieldNames);
         logicalFieldConvert = new AvroLogicalFieldConvert();
     }
@@ -82,8 +84,15 @@ public class AvroSchemaConvert extends AbstractSchemaConvert {
             schema = schema.getTypes().get(1);
         }
         if (schema.getLogicalType() != null) {
-            result = Optional.of(Field.newBuilder(fieldName,
-                    logicalFieldConvert.convertFieldType(schema.getLogicalType())).setMode(Field.Mode.NULLABLE));
+            StandardSQLTypeName standardSQLTypeName = logicalFieldConvert.convertFieldType(schema.getLogicalType());
+            Field.Builder fieldBuilder = Field.newBuilder(fieldName, standardSQLTypeName).setMode(Field.Mode.NULLABLE);
+            if (standardSQLTypeName == StandardSQLTypeName.BIGNUMERIC
+                    || standardSQLTypeName == StandardSQLTypeName.NUMERIC) {
+                LogicalTypes.Decimal logicalType = (LogicalTypes.Decimal) schema.getLogicalType();
+                fieldBuilder.setPrecision((long) logicalType.getPrecision());
+                fieldBuilder.setScale((long) logicalType.getScale());
+            }
+            result = Optional.of(fieldBuilder);
         } else if (PRIMITIVE_TYPE_MAP.containsKey(schema.getType())) {
             result = Optional.of(Field.newBuilder(fieldName,
                     PRIMITIVE_TYPE_MAP.get(schema.getType())).setMode(Field.Mode.NULLABLE));
@@ -135,7 +144,8 @@ public class AvroSchemaConvert extends AbstractSchemaConvert {
 
     private Field.Builder convertMap(String fieldName,
                                      org.apache.pulsar.shade.org.apache.avro.Schema avroFieldSchema) {
-        Field keyField = Field.of(MAP_KEY_NAME, StandardSQLTypeName.STRING);
+        Field keyField = Field.newBuilder(MAP_KEY_NAME, StandardSQLTypeName.STRING)
+                                                        .setMode(Field.Mode.NULLABLE).build();
         Field valueField = convertField(MAP_VALUE_NAME, avroFieldSchema.getValueType()).get().build();
         return Field.newBuilder(fieldName,
                 StandardSQLTypeName.STRUCT, keyField, valueField).setMode(Field.Mode.REPEATED);

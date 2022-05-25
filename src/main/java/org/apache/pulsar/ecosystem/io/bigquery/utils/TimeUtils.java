@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.ecosystem.io.bigquery.utils;
 
-import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.TimeZone;
 import org.threeten.bp.LocalDateTime;
@@ -46,29 +45,5 @@ public class TimeUtils {
                 calendar.get(Calendar.MINUTE), calendar.get(Calendar.SECOND),
                 calendar.get(Calendar.MILLISECOND) * 1000000);
         return localDateTime;
-    }
-
-    public static SimpleDateFormat getBqTimestampFormat() {
-        SimpleDateFormat bqTimestampFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-        bqTimestampFormat.setTimeZone(utcTimeZone);
-        return bqTimestampFormat;
-    }
-
-    public SimpleDateFormat getBqTimeFormat() {
-        SimpleDateFormat bqTimestampFormat = new SimpleDateFormat("HH:mm:ss.SSS");
-        bqTimestampFormat.setTimeZone(utcTimeZone);
-        return bqTimestampFormat;
-    }
-
-    public static SimpleDateFormat getBQDateFormat() {
-        SimpleDateFormat bqDateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        bqDateFormat.setTimeZone(utcTimeZone);
-        return bqDateFormat;
-    }
-
-    public static SimpleDateFormat getBQTimeFormat() {
-        SimpleDateFormat bqTimeFormat = new SimpleDateFormat("HH:mm:ss.SSS");
-        bqTimeFormat.setTimeZone(utcTimeZone);
-        return bqTimeFormat;
     }
 }

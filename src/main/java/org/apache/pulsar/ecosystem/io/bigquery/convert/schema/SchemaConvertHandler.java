@@ -20,8 +20,8 @@ package org.apache.pulsar.ecosystem.io.bigquery.convert.schema;
 
 import com.google.cloud.bigquery.Schema;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
@@ -34,7 +34,7 @@ public class SchemaConvertHandler implements SchemaConvert {
 
     private Map<SchemaType, SchemaConvert> schemaConverts = new HashMap<>();
 
-    public SchemaConvertHandler(List<String> systemFieldNames) {
+    public SchemaConvertHandler(Set<String> systemFieldNames) {
         schemaConverts.put(SchemaType.AVRO, new AvroSchemaConvert(systemFieldNames));
     }
 

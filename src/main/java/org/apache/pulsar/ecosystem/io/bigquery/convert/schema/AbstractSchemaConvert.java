@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.StandardSQLTypeName;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -36,9 +37,9 @@ import org.apache.pulsar.functions.api.Record;
 @Slf4j
 public abstract class AbstractSchemaConvert implements SchemaConvert {
 
-    private final List<String> systemFieldNames;
+    private final Set<String> systemFieldNames;
 
-    public AbstractSchemaConvert(List<String> systemFieldNames) {
+    public AbstractSchemaConvert(Set<String> systemFieldNames) {
         this.systemFieldNames = systemFieldNames;
     }
 
@@ -64,10 +65,11 @@ public abstract class AbstractSchemaConvert implements SchemaConvert {
                             StandardSQLTypeName fieldSQLType =
                                     DefaultSystemFieldConvert.getFieldSQLType(systemFieldName);
                             if (fieldSQLType == null) {
-                                log.warn("Not support system field {}", systemFieldName);
+                                log.warn("Not support system field [{}], ignore this field.", systemFieldName);
                                 return null;
                             } else {
-                                return Field.of(systemFieldName, fieldSQLType);
+                                return Field.newBuilder(systemFieldName, fieldSQLType)
+                                                       .setMode(Field.Mode.NULLABLE).build();
                             }
                         }).filter(field -> field != null)
                         .collect(Collectors.toList())

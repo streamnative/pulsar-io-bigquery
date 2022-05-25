@@ -34,9 +34,9 @@ import com.google.cloud.bigquery.TimePartitioning;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -56,7 +56,7 @@ public class SchemaManager {
     private final SchemaConvert schemaConvert;
 
     // config info
-    private final List<String> defaultSystemField;
+    private final Set<String> defaultSystemField;
     private final boolean autoCreateTable;
     private final boolean autoUpdateTable;
     private final boolean partitionedTables;
@@ -80,20 +80,18 @@ public class SchemaManager {
 
         // init current schema
         try {
-            Table table = bigquery.getTable(tableId);
-            if (table != null) {
-                currentSchema = table.getDefinition().getSchema();
-            }
+            currentSchema = fetchTableSchema();
         } catch (BigQueryException e) {
             if (e.getCode() == HTTP_NOT_FOUND) {
-                if (!bigQueryConfig.isAutoCreateTable()) {
+                if (!autoCreateTable) {
                     log.error("Not found table {} and auto create table is disable", tableId, e);
                     throw e;
                 } else {
                     log.info("Not found table {}, when first message received to auto create", tableId);
                 }
+            } else {
+                throw e;
             }
-            throw e;
         }
     }
 
@@ -103,11 +101,10 @@ public class SchemaManager {
      * @param records
      */
     public void createTable(Record<GenericRecord> records) {
+        // There is no need to judge whether autoCreateTable is open here,
+        // the scene that is not opened has been intercepted in the constructor.
         if (currentSchema != null) {
             return;
-        }
-        if (!autoUpdateTable) {
-            throw new BigQueryConnectorRuntimeException("Not auto create table, autoUpdateTable == false.");
         }
         try {
             Schema schema = schemaConvert.convertSchema(records);
@@ -144,21 +141,16 @@ public class SchemaManager {
      * @param records
      */
     public void updateSchema(Record<GenericRecord> records) {
+        if (!autoUpdateTable) {
+            throw new BigQueryConnectorRuntimeException("Table cannot be update,"
+                    + " autoUpdateTable == false.");
+        }
         Schema bigQuerySchema = fetchTableSchema();
         Schema pulsarSchema = schemaConvert.convertSchema(records);
         Schema mergeSchema = mergeSchema(bigQuerySchema, pulsarSchema);
         TableInfo tableInfo = Table.newBuilder(tableId, StandardTableDefinition.of(mergeSchema)).build();
         bigquery.update(tableInfo);
         log.info("update table success {}", tableInfo);
-    }
-
-    /**
-     * Get current cache table schema.
-     *
-     * @return
-     */
-    public Schema getCacheTableSchema() {
-        return currentSchema;
     }
 
     // ---------------------------- private method -------------------------------

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.ecosystem.io.bigquery.samples;
+package org.apache.pulsar.ecosystem.io.bigquery.integration;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -64,13 +64,13 @@ public class BigQuerySinkAllTestNew {
         bigQuerySink.open(sinkConfig, null);
 
         Record<GenericRecord> record = getGenericRecordRecord();
-        bigQuerySink.write(record);
+//        bigQuerySink.write(record);
 
 
-        Thread.sleep(1000);
-        Record<GenericRecord> record2 = getGenericRecordRecord2();
-        bigQuerySink.write(record2);
-        bigQuerySink.close();
+//        Thread.sleep(1000);
+//        Record<GenericRecord> record2 = getGenericRecordRecord2();
+//        bigQuerySink.write(record2);
+//        bigQuerySink.close();
     }
 
 

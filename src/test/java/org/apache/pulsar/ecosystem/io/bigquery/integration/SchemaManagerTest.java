@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.ecosystem.io.bigquery.samples;
+package org.apache.pulsar.ecosystem.io.bigquery.integration;
 
 import java.io.IOException;
 import java.util.HashMap;
