@@ -23,8 +23,8 @@ import static org.apache.pulsar.ecosystem.io.bigquery.convert.DefaultSystemField
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 import com.google.cloud.bigquery.storage.v1.BigDecimalByteStringEncoder;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
@@ -60,7 +60,7 @@ public class AvroRecordConverterTest {
         bigQueryConfig.setDatasetName("dateset_name");
         bigQueryConfig.setTableName("table_name");
         SchemaManagerTest.BigQueryMock bigQueryMock = new SchemaManagerTest.BigQueryMock();
-        when(bigQueryConfig.createBigQuery()).thenReturn(bigQueryMock.getBigQuery());
+        doReturn(bigQueryMock.getBigQuery()).when(bigQueryConfig).createBigQuery();
         bigQueryConfig.setAutoCreateTable(true);
         bigQueryConfig.setAutoUpdateTable(true);
         bigQueryConfig.setClusteredTables(true);

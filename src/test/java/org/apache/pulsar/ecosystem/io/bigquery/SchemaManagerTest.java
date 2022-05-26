@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -68,7 +69,7 @@ public class SchemaManagerTest {
     public void testInit() {
         BigQuery bigQuery = mock(BigQuery.class);
         bigQueryConfig.setAutoCreateTable(false);
-        when(bigQueryConfig.createBigQuery()).thenReturn(bigQuery);
+        doReturn(bigQuery).when(bigQueryConfig).createBigQuery();
 
         when(bigQuery.getTable(Mockito.any())).thenReturn(null);
         try {
@@ -92,7 +93,7 @@ public class SchemaManagerTest {
     @Test
     public void testCreateAndUpdateTable() {
         BigQueryMock bigQueryMock = new BigQueryMock();
-        when(bigQueryConfig.createBigQuery()).thenReturn(bigQueryMock.getBigQuery());
+        doReturn(bigQueryMock.getBigQuery()).when(bigQueryConfig).createBigQuery();
         bigQueryConfig.setAutoCreateTable(true);
         bigQueryConfig.setAutoUpdateTable(true);
         bigQueryConfig.setClusteredTables(true);

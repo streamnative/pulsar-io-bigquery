@@ -1,4 +1,4 @@
-name: pulsar-io-google-pubsub unit tests
+name: pulsar-io-big-query unit tests
 
 on:
   pull_request:
@@ -32,5 +32,5 @@ jobs:
       - name: Spotbugs check
         run: mvn spotbugs:check
 
-      - name: test after build
+      - name: Run unit test
         run: mvn test -DfailIfNoTests=false
