@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Clustering;
 import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.StandardTableDefinition;
@@ -31,13 +32,23 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TimePartitioning;
+import com.google.cloud.bigquery.storage.v1.BQTableSchemaToProtoDescriptor;
+import com.google.cloud.bigquery.storage.v1.ProtoSchema;
+import com.google.cloud.bigquery.storage.v1.ProtoSchemaConverter;
+import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
+import com.google.cloud.bigquery.storage.v1.TableSchema;
+import com.google.protobuf.Descriptors;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import lombok.Getter;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.schema.SchemaConvert;
@@ -53,6 +64,15 @@ public class SchemaManager {
 
     private final BigQuery bigquery;
     private final TableId tableId;
+    @Getter
+    private Schema schema;
+    @Getter
+    private TableSchema tableSchema;
+    @Getter
+    private Descriptors.Descriptor descriptor;
+    @Getter
+    private ProtoSchema protoSchema;
+
     private final SchemaConvert schemaConvert;
 
     // config info
@@ -63,8 +83,6 @@ public class SchemaManager {
     private final int partitionedTableIntervalDay;
     private final boolean clusteredTables;
 
-    // schema resources
-    private Schema currentSchema;
 
     public SchemaManager(BigQueryConfig bigQueryConfig) throws IOException {
         this.bigquery = bigQueryConfig.createBigQuery();
@@ -80,7 +98,11 @@ public class SchemaManager {
 
         // init current schema
         try {
-            currentSchema = fetchTableSchema();
+            Schema schema = fetchTableSchema();
+            if (schema == null) {
+                throw new BigQueryException(HTTP_NOT_FOUND, "Not Found table:" + tableId);
+            }
+            updateSchema(schema);
         } catch (BigQueryException e) {
             if (e.getCode() == HTTP_NOT_FOUND) {
                 if (!autoCreateTable) {
@@ -103,7 +125,7 @@ public class SchemaManager {
     public void createTable(Record<GenericRecord> records) {
         // There is no need to judge whether autoCreateTable is open here,
         // the scene that is not opened has been intercepted in the constructor.
-        if (currentSchema != null) {
+        if (schema != null) {
             return;
         }
         try {
@@ -126,7 +148,7 @@ public class SchemaManager {
             }
             TableInfo tableInfo = TableInfo.newBuilder(tableId, tableDefinition.build()).build();
             bigquery.create(tableInfo);
-            currentSchema = schema;
+            updateSchema(schema);
         } catch (Exception e) {
             throw e;
         }
@@ -150,10 +172,33 @@ public class SchemaManager {
         Schema mergeSchema = mergeSchema(bigQuerySchema, pulsarSchema);
         TableInfo tableInfo = Table.newBuilder(tableId, StandardTableDefinition.of(mergeSchema)).build();
         bigquery.update(tableInfo);
+        updateSchema(mergeSchema);
         log.info("update table success {}", tableInfo);
     }
 
     // ---------------------------- private method -------------------------------
+    private List<TableFieldSchema> toTableFieldsSchema(FieldList fieldsList) {
+        List<TableFieldSchema> tableFieldSchemas = new ArrayList<>(fieldsList.size());
+        for (Field field : fieldsList) {
+            TableFieldSchema.Builder tableField = TableFieldSchema.newBuilder().setName(field.getName());
+            if (field.getType() == LegacySQLTypeName.FLOAT) {
+                tableField.setType(TableFieldSchema.Type.DOUBLE);
+            } else {
+                tableField.setType(TableFieldSchema.Type.valueOf(field.getType().getStandardType().name()));
+            }
+            tableField.setMode(TableFieldSchema.Mode.valueOf(field.getMode().name()));
+            Optional.ofNullable(field.getDescription()).ifPresent(
+                    description -> tableField.setDescription(description));
+            if (field.getType() == LegacySQLTypeName.RECORD) {
+                FieldList subFields = field.getSubFields();
+                for (TableFieldSchema tableFieldSchema : toTableFieldsSchema(subFields)) {
+                    tableField.addFields(tableFieldSchema);
+                }
+            }
+            tableFieldSchemas.add(tableField.build());
+        }
+        return tableFieldSchemas;
+    }
 
     private Schema mergeSchema(Schema bigQuerySchema, Schema pulsarSchema) {
         Map<String, Field> bigQueryFields = getSchemaFields(bigQuerySchema);
@@ -242,10 +287,17 @@ public class SchemaManager {
         return result;
     }
 
+    @SneakyThrows
+    private void updateSchema(Schema schema) {
+        this.schema = schema;
+        this.tableSchema = TableSchema.newBuilder().addAllFields(toTableFieldsSchema(schema.getFields())).build();
+        this.descriptor = BQTableSchemaToProtoDescriptor.convertBQTableSchemaToProtoDescriptor(this.tableSchema);
+        this.protoSchema = ProtoSchemaConverter.convert(this.descriptor);
+    }
+
     private Schema fetchTableSchema() {
-        currentSchema = Optional.ofNullable(bigquery.getTable(tableId))
+        return Optional.ofNullable(bigquery.getTable(tableId))
                 .map(t -> t.getDefinition().getSchema())
                 .orElse(null);
-        return currentSchema;
     }
 }

@@ -49,8 +49,8 @@ public class AvroRecordsUtils {
         dag.setDate(23456);
         dag.setBigDecimal(new BigDecimal("123.45"));
         dag.setTimeMillis(415988644);
-        dag.setLocalTimesMillis(System.currentTimeMillis());
-        dag.setTimestampMillis(System.currentTimeMillis());
+        dag.setLocalTimesMillis(1653530376803L);
+        dag.setTimestampMillis(1653530376803L);
         dag.setArray(Arrays.asList("a", "b", "c"));
 
         Map<String, Dag> map3 = new HashMap<>();
@@ -65,7 +65,7 @@ public class AvroRecordsUtils {
         tag.doublev = 100.123;
         tag.floatv = (float) 123.2;
         tag.inta = 1;
-        tag.intb = System.currentTimeMillis();
+        tag.intb = 1653530376803L;
 
         Foo foo = new Foo();
         foo.setCol1("test col2");
@@ -98,7 +98,7 @@ public class AvroRecordsUtils {
 
             @Override
             public Optional<Long> getEventTime() {
-                return Optional.of(System.currentTimeMillis());
+                return Optional.of(1653530376803L);
             }
 
             @Override

@@ -67,7 +67,7 @@ public class AvroLogicalFieldConvert implements LogicalFieldConvert<LogicalType>
         switch (tableFieldType) {
             case DATE:
                 if (pulsarFieldValue instanceof Integer) {
-                    return (Integer) pulsarFieldValue;
+                    return pulsarFieldValue;
                 }
                 break;
             case NUMERIC:
@@ -94,7 +94,7 @@ public class AvroLogicalFieldConvert implements LogicalFieldConvert<LogicalType>
             case TIME:
                 if (pulsarFieldValue instanceof Long) {
                     if (pulsarFieldType instanceof LogicalTypes.TimeMicros) {
-                        return (long) pulsarFieldValue;
+                        return pulsarFieldValue;
                     }
                 }
                 break;
@@ -103,7 +103,7 @@ public class AvroLogicalFieldConvert implements LogicalFieldConvert<LogicalType>
                     if (pulsarFieldType instanceof LogicalTypes.TimestampMillis) {
                         return (Long) pulsarFieldValue * 1000;
                     } else if (pulsarFieldType instanceof LogicalTypes.TimestampMicros) {
-                        return (Long) pulsarFieldValue;
+                        return pulsarFieldValue;
                     }
                 }
                 break;

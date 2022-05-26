@@ -260,6 +260,9 @@
             <excludes>
               <exclude>LICENSE</exclude>
               <exclude>NOTICE</exclude>
+              <exclude>.github/**/*.yml</exclude>
+              <exclude>**/*.template</exclude>
+              <exclude>.ci/**</exclude>
             </excludes>
             <mapping>
               <proto>JAVADOC_STYLE</proto>

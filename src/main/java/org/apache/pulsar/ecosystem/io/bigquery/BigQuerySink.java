@@ -18,18 +18,13 @@
  */
 package org.apache.pulsar.ecosystem.io.bigquery;
 
-import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
-import com.google.cloud.bigquery.storage.v1.BQTableSchemaToProtoDescriptor;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest;
 import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamRequest;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
-import com.google.cloud.bigquery.storage.v1.ProtoSchemaConverter;
 import com.google.cloud.bigquery.storage.v1.StreamWriter;
 import com.google.cloud.bigquery.storage.v1.TableName;
-import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.cloud.bigquery.storage.v1.WriteStream;
-import com.google.protobuf.Descriptors;
 import java.util.Map;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
@@ -52,10 +47,7 @@ public class BigQuerySink implements Sink<GenericRecord> {
     private BigQueryWriteClient client;
     private WriteStream writeStream;
     private StreamWriter streamWriter;
-    private TableSchema tableSchema;
-    private Descriptors.Descriptor descriptor;
     private TableName tableName;
-
 
     // pulsar
     private RecordConverter recordConverter;
@@ -125,7 +117,7 @@ public class BigQuerySink implements Sink<GenericRecord> {
 
         // Try first append rows.
         try {
-            AppendRowsResponse response = streamWriter.append(protoRows).get();
+            streamWriter.append(protoRows).get();
             return;
         } catch (Exception e) {
             // TODO Refinement exceptions, other exceptions, throw exceptions directly
@@ -135,15 +127,15 @@ public class BigQuerySink implements Sink<GenericRecord> {
 
         // Bigquery resource update is delayed, try a few more times.
         int tryCount = 0;
-        while (tryCount++ < 3) {
+        while (tryCount++ < 5) {
             Thread.sleep(1000);
             try {
                 updateBigQueryResources();
-                AppendRowsResponse response = streamWriter.append(protoRows).get();
+                streamWriter.append(protoRows).get();
                 return;
             } catch (Exception e) {
                 // TODO Refinement exceptions, other exceptions, throw exceptions directly
-                log.warn("Try append to record <{}>", tryCount);
+                log.warn("Try append to record <{}>", tryCount, e);
             }
         }
         throw new BigQueryConnectorRuntimeException(
@@ -152,7 +144,8 @@ public class BigQuerySink implements Sink<GenericRecord> {
 
     private ProtoRows convertRecord(Record<GenericRecord> record) throws Exception {
         try {
-            return recordConverter.convertRecord(record, descriptor, tableSchema.getFieldsList());
+            return recordConverter.convertRecord(record, schemaManager.getDescriptor(),
+                    schemaManager.getTableSchema().getFieldsList());
         } catch (RecordConvertException e) {
             // Not care why exception, try to update the schema directly and get the latest tableSchema.
             log.warn("Convert failed to record, try update schema", e);
@@ -161,13 +154,14 @@ public class BigQuerySink implements Sink<GenericRecord> {
 
         // Bigquery resource update is delayed, try a few more times.
         int tryCount = 0;
-        while (tryCount++ < 3) {
+        while (tryCount++ < 5) {
             Thread.sleep(1000);
             try {
                 updateBigQueryResources();
-                return recordConverter.convertRecord(record, descriptor, tableSchema.getFieldsList());
+                return recordConverter.convertRecord(record, schemaManager.getDescriptor(),
+                        schemaManager.getTableSchema().getFieldsList());
             } catch (RecordConvertException e) {
-                log.warn("Try convert to record <{}>", tryCount);
+                log.warn("Try convert to record <{}>", tryCount, e);
             }
         }
         throw new BigQueryConnectorRuntimeException(
@@ -183,12 +177,10 @@ public class BigQuerySink implements Sink<GenericRecord> {
                         .build();
         // if table not found, client will throw exception
         writeStream = client.createWriteStream(createWriteStreamRequest);
-        tableSchema = writeStream.getTableSchema();
-        descriptor = BQTableSchemaToProtoDescriptor.convertBQTableSchemaToProtoDescriptor(tableSchema);
         streamWriter = StreamWriter
                 .newBuilder(writeStream.getName(), client)
-                .setWriterSchema(ProtoSchemaConverter.convert(descriptor))
+                .setWriterSchema(schemaManager.getProtoSchema())
                 .build();
-        log.info("start new write stream: {}", writeStream.getName());
+        log.info("Start new write stream: {}", writeStream.getName());
     }
 }
