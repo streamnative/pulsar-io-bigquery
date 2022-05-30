@@ -39,7 +39,7 @@ import org.junit.Test;
 /**
  * Integration test.
  */
-public class AvroDataConvertIntegrationTest {
+public class AvroDataConvertTestIntegration {
 
     @Test
     public void testFirst() throws IOException, InterruptedException {

@@ -66,31 +66,6 @@ public class SchemaManagerTest {
 
     @SneakyThrows
     @Test
-    public void testInit() {
-        BigQuery bigQuery = mock(BigQuery.class);
-        bigQueryConfig.setAutoCreateTable(false);
-        doReturn(bigQuery).when(bigQueryConfig).createBigQuery();
-
-        when(bigQuery.getTable(Mockito.any())).thenReturn(null);
-        try {
-            new SchemaManager(bigQueryConfig);
-            fail("Should has failed");
-        } catch (Exception e) {
-        }
-
-        when(bigQuery.getTable(Mockito.any())).thenThrow(new BigQueryException(HTTP_NOT_FOUND, "Mock Not found table"));
-        try {
-            new SchemaManager(bigQueryConfig);
-            fail("Should has failed");
-        } catch (Exception e) {
-        }
-
-        bigQueryConfig.setAutoCreateTable(true);
-        new SchemaManager(bigQueryConfig);
-    }
-
-    @SneakyThrows
-    @Test
     public void testCreateAndUpdateTable() {
         BigQueryMock bigQueryMock = new BigQueryMock();
         doReturn(bigQueryMock.getBigQuery()).when(bigQueryConfig).createBigQuery();

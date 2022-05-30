@@ -108,7 +108,7 @@ public class SchemaManager {
             log.info("Table is exist <{}>, ignore create request.", tableId);
             return;
         } catch (BigQueryException e) {
-            if (e.getCode() == HTTP_NOT_FOUND && autoCreateTable) {
+            if (e.getCode() == HTTP_NOT_FOUND) {
                 if (autoCreateTable) {
                     log.info("Table is not exist and auto create table equals true, start creating table.");
                 } else {

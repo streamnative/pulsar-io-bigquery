@@ -29,6 +29,7 @@ echo "Waiting for sink and source ..."
 sleep 30
 
 echo "Run integration tests"
-(cd "$SRC_DIR" && mvn -Dtest="*IntegrationTest" test -DfailIfNoTests=false)
+export GOOGLE_APPLICATION_CREDENTIALS=$SRC_DIR/.ci/integrations/bigquery-key.json
+(cd "$SRC_DIR" && mvn -Dtest="*TestIntegration" test -DfailIfNoTests=false)
 
 (cd "${SRC_DIR}/.ci/integrations" && docker-compose down --rmi local)

@@ -33,4 +33,4 @@ jobs:
         run: mvn spotbugs:check
 
       - name: Run unit test
-        run: mvn test -DfailIfNoTests=false
+        run: mvn test -Dtest="*Test"  -DfailIfNoTests=false
