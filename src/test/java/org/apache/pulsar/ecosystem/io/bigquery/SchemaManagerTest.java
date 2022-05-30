@@ -104,7 +104,7 @@ public class SchemaManagerTest {
         Record<GenericRecord> genericRecordRecordFirst = AvroRecordsUtils.getGenericRecordRecordFirst();
 
         // create table
-        schemaManager.createTable(genericRecordRecordFirst);
+        schemaManager.initTable(genericRecordRecordFirst);
         StandardTableDefinition tableDefinition = bigQueryMock.getTableDefinition();
 
         // auto create cluster table

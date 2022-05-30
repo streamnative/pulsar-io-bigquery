@@ -1,0 +1,66 @@
+configs:
+  # projectId is BigQuery project id.
+  #
+  # This field is *required*.
+  #
+  projectId: "affable-ray-226821"
+
+  # datasetName is BigQuery dataset name.
+  #
+  # This field is *required*.
+  #
+  datasetName: "integration"
+
+  # tableName is BigQuery table name.
+  #
+  # This field is *required*.
+  #
+  tableName: "integration_table"
+
+  # Create a partitioned table when the table is automatically created.
+  # It will use __message_id__ the partition key.
+  #
+  # This field is optional.
+  #
+  partitionedTables: true
+
+  # clusteredTableIntervalDay is number of days between partitioning of the partitioned table
+  #
+  # This field is optional.
+  #
+  partitionedTableIntervalDay: 7
+
+  # Create a clusteredTables table when the table is automatically created.
+  # It will use __event_time__ the partition key.
+  #
+  # This field is optional.
+  #
+  clusteredTables: true
+
+  # Automatically create table when table does not exist
+  #
+  # This field is optional.
+  #
+  autoCreateTable: true
+
+  # Automatically update table schema when table schema is incompatible.
+  #
+  # This field is optional.
+  #
+  autoUpdateTable: true
+
+  # Create system fields when the table is automatically created, separate multiple fields with commas.
+  # The supported system fields are: __schema_version__ , __partition__ , __event_time__ ,
+  # __publish_time__ , __message_id__ , __sequence_id__ , __producer_name__.
+  #
+  # This field is optional.
+  #
+  defaultSystemField: "__sequence_id__, __producer_name__"
+
+  # Authentication key, use the environment variable to get the key when key is empty.
+  # Key acquisition reference:
+  # https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries#before-you-begin.
+  #
+  # This field is optional.
+  #
+  keyJson: ""

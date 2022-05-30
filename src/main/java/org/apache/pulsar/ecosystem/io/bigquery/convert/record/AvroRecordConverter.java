@@ -28,12 +28,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.util.Utf8;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.DefaultSystemFieldConvert;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.logicaltype.AvroLogicalFieldConvert;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.RecordConvertException;
-import org.apache.pulsar.shade.org.apache.avro.Schema;
-import org.apache.pulsar.shade.org.apache.avro.generic.GenericData;
-import org.apache.pulsar.shade.org.apache.avro.util.Utf8;
 
 /**
  * avro record converter.
@@ -52,8 +52,8 @@ public class AvroRecordConverter extends AbstractRecordConvert {
     protected DynamicMessage.Builder convertUserField(DynamicMessage.Builder protoMsg, Object nativeRecord,
                                       Descriptors.Descriptor protoDescriptor,
                                       List<TableFieldSchema> tableFieldSchema) throws RecordConvertException {
-        org.apache.pulsar.shade.org.apache.avro.generic.GenericRecord avroNativeRecord =
-                (org.apache.pulsar.shade.org.apache.avro.generic.GenericRecord) nativeRecord;
+        org.apache.avro.generic.GenericRecord avroNativeRecord =
+                (org.apache.avro.generic.GenericRecord) nativeRecord;
         List<String> pulsarFields = avroNativeRecord.getSchema().getFields().
                 stream().map(field -> field.name()).collect(Collectors.toList());
         Schema avroSchema = avroNativeRecord.getSchema();
@@ -160,7 +160,7 @@ public class AvroRecordConverter extends AbstractRecordConvert {
                     return;
                 case STRUCT:
                     // If type is STRUCT, continue recursion
-                    if (value instanceof org.apache.pulsar.shade.org.apache.avro.generic.GenericRecord) {
+                    if (value instanceof org.apache.avro.generic.GenericRecord) {
                         DynamicMessage structMsg =
                                 buildMessage(
                                         convertUserField(DynamicMessage.newBuilder(pbFieldDescriptor.getMessageType()),
