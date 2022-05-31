@@ -172,7 +172,7 @@ public class SchemaManager {
         TableInfo tableInfo = Table.newBuilder(tableId, StandardTableDefinition.of(mergeSchema)).build();
         bigquery.update(tableInfo);
         updateCacheSchema(mergeSchema);
-        log.info("update table success {}", tableInfo);
+        log.info("update table success <{}>", tableInfo);
     }
 
     // ---------------------------- private method -------------------------------

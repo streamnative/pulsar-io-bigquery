@@ -131,7 +131,9 @@ public class AvroRecordConverter extends AbstractRecordConvert {
         TableFieldSchema.Type type = tableFieldSchema.getType();
         if (avroFieldSchema.getLogicalType() != null
                 && logicalFieldConvert.isLogicType(avroFieldSchema.getLogicalType())) {
-            log.debug("Convert logical type " + avroFieldSchema);
+            if (log.isDebugEnabled()) {
+                log.debug("Convert logical type " + avroFieldSchema);
+            }
             protoMsg.setField(pbFieldDescriptor,
                     logicalFieldConvert.convertFieldValue(avroFieldSchema.getLogicalType(), value));
         } else {

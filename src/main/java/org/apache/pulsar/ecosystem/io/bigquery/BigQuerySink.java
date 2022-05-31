@@ -85,7 +85,9 @@ public class BigQuerySink implements Sink<GenericRecord> {
         writeRecord(record);
 
         // 3. Ack message.
-        log.debug("Append success, ack this message <{}>", record.getMessage().get().getMessageId());
+        if (log.isDebugEnabled()) {
+            log.debug("Append success, ack this message <{}>", record.getMessage().get().getMessageId());
+        }
         record.ack();
     }
 
