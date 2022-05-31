@@ -33,6 +33,7 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.util.Utf8;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.DefaultSystemFieldConvert;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.logicaltype.AvroLogicalFieldConvert;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.RecordConvertException;
 
 /**
@@ -187,15 +188,20 @@ public class AvroRecordConverter extends AbstractRecordConvert {
 
 
     /**
-     * Union types require special handling refer to the usage documentation.
+     * For union types, take the first non-null type.
      * Reference avro docs: https://avro.apache.org/docs/current/spec.html#Unions
      *
      * @param avroFieldSchema
      * @return
      */
-    private Schema pickSchema(Schema avroFieldSchema) {
+    public static Schema pickSchema(Schema avroFieldSchema) {
         if (avroFieldSchema.isUnion()) {
-            avroFieldSchema = avroFieldSchema.getTypes().get(1);
+            for (Schema type : avroFieldSchema.getTypes()) {
+                if (!type.isNullable()) {
+                    return type;
+                }
+            }
+            throw new BigQueryConnectorRuntimeException("There are no types in composite types that are not NULL");
         }
         return avroFieldSchema;
     }

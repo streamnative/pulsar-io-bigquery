@@ -32,6 +32,7 @@ import java.util.Set;
 import org.apache.avro.LogicalTypes;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.logicaltype.AvroLogicalFieldConvert;
+import org.apache.pulsar.ecosystem.io.bigquery.convert.record.AvroRecordConverter;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
 import org.apache.pulsar.functions.api.Record;
 
@@ -78,11 +79,7 @@ public class AvroSchemaConvert extends AbstractSchemaConvert {
     private Optional<Field.Builder> convertField(String fieldName,
                                                  org.apache.avro.Schema schema) {
         Optional<Field.Builder> result;
-        // Union types require special handling refer to the usage documentation.
-        // Reference avro docs: https://avro.apache.org/docs/current/spec.html#Unions
-        if (schema.isUnion()) {
-            schema = schema.getTypes().get(1);
-        }
+        schema = AvroRecordConverter.pickSchema(schema);
         if (schema.getLogicalType() != null) {
             StandardSQLTypeName standardSQLTypeName = logicalFieldConvert.convertFieldType(schema.getLogicalType());
             Field.Builder fieldBuilder = Field.newBuilder(fieldName, standardSQLTypeName).setMode(Field.Mode.NULLABLE);
