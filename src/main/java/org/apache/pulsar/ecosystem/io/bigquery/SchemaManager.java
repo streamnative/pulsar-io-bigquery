@@ -83,11 +83,9 @@ public class SchemaManager {
     private final int partitionedTableIntervalDay;
     private final boolean clusteredTables;
 
-
     public SchemaManager(BigQueryConfig bigQueryConfig) throws IOException {
         this.bigquery = bigQueryConfig.createBigQuery();
-        this.tableId = TableId.of(
-                bigQueryConfig.getProjectId(), bigQueryConfig.getDatasetName(), bigQueryConfig.getTableName());
+        this.tableId = bigQueryConfig.getTableId();
         this.defaultSystemField = bigQueryConfig.getDefaultSystemField();
         this.autoCreateTable = bigQueryConfig.isAutoCreateTable();
         this.autoUpdateTable = bigQueryConfig.isAutoUpdateTable();
@@ -95,38 +93,31 @@ public class SchemaManager {
         this.partitionedTableIntervalDay = bigQueryConfig.getPartitionedTableIntervalDay();
         this.clusteredTables = bigQueryConfig.isClusteredTables();
         this.schemaConvert = new SchemaConvertHandler(defaultSystemField);
-
-        // init current schema
-        try {
-            Schema schema = fetchTableSchema();
-            if (schema == null) {
-                throw new BigQueryException(HTTP_NOT_FOUND, "Not Found table:" + tableId);
-            }
-            updateSchema(schema);
-        } catch (BigQueryException e) {
-            if (e.getCode() == HTTP_NOT_FOUND) {
-                if (!autoCreateTable) {
-                    log.error("Not found table {} and auto create table is disable", tableId, e);
-                    throw e;
-                } else {
-                    log.info("Not found table {}, when first message received to auto create", tableId);
-                }
-            } else {
-                throw e;
-            }
-        }
     }
 
     /**
      * Create table when table doesn't exist.
+     * Each call will perform a request to try to get the latest schema.
      *
      * @param records
      */
-    public void createTable(Record<GenericRecord> records) {
-        // There is no need to judge whether autoCreateTable is open here,
-        // the scene that is not opened has been intercepted in the constructor.
-        if (schema != null) {
+    public void initTable(Record<GenericRecord> records) {
+        try {
+            Schema schema = fetchTableSchema();
+            updateCacheSchema(schema);
+            log.info("Table is exist <{}>, ignore create request.", tableId);
             return;
+        } catch (BigQueryException e) {
+            if (e.getCode() == HTTP_NOT_FOUND) {
+                if (autoCreateTable) {
+                    log.info("Table is not exist and auto create table equals true, start creating table.");
+                } else {
+                    throw new BigQueryConnectorRuntimeException(
+                            "Init table failed, table is not exist and autoCreateTable == false");
+                }
+            } else {
+                throw e;
+            }
         }
         try {
             Schema schema = schemaConvert.convertSchema(records);
@@ -148,7 +139,8 @@ public class SchemaManager {
             }
             TableInfo tableInfo = TableInfo.newBuilder(tableId, tableDefinition.build()).build();
             bigquery.create(tableInfo);
-            updateSchema(schema);
+            updateCacheSchema(schema);
+            log.info("create table success <{}>", tableId);
         } catch (Exception e) {
             throw e;
         }
@@ -167,12 +159,19 @@ public class SchemaManager {
             throw new BigQueryConnectorRuntimeException("Table cannot be update,"
                     + " autoUpdateTable == false.");
         }
-        Schema bigQuerySchema = fetchTableSchema();
+        Schema bigQuerySchema;
+        try {
+            bigQuerySchema = fetchTableSchema();
+        } catch (BigQueryException e) {
+            log.warn("Get schema failed, try create table <{}>", tableId);
+            initTable(records);
+            return;
+        }
         Schema pulsarSchema = schemaConvert.convertSchema(records);
         Schema mergeSchema = mergeSchema(bigQuerySchema, pulsarSchema);
         TableInfo tableInfo = Table.newBuilder(tableId, StandardTableDefinition.of(mergeSchema)).build();
         bigquery.update(tableInfo);
-        updateSchema(mergeSchema);
+        updateCacheSchema(mergeSchema);
         log.info("update table success {}", tableInfo);
     }
 
@@ -288,16 +287,23 @@ public class SchemaManager {
     }
 
     @SneakyThrows
-    private void updateSchema(Schema schema) {
-        this.schema = schema;
-        this.tableSchema = TableSchema.newBuilder().addAllFields(toTableFieldsSchema(schema.getFields())).build();
-        this.descriptor = BQTableSchemaToProtoDescriptor.convertBQTableSchemaToProtoDescriptor(this.tableSchema);
-        this.protoSchema = ProtoSchemaConverter.convert(this.descriptor);
+    private void updateCacheSchema(Schema schema) {
+        if (schema == null) {
+            this.schema = null;
+            this.tableSchema = null;
+            this.descriptor = null;
+            this.protoSchema = null;
+        } else {
+            this.schema = schema;
+            this.tableSchema = TableSchema.newBuilder().addAllFields(toTableFieldsSchema(schema.getFields())).build();
+            this.descriptor = BQTableSchemaToProtoDescriptor.convertBQTableSchemaToProtoDescriptor(this.tableSchema);
+            this.protoSchema = ProtoSchemaConverter.convert(this.descriptor);
+        }
     }
 
     private Schema fetchTableSchema() {
         return Optional.ofNullable(bigquery.getTable(tableId))
-                .map(t -> t.getDefinition().getSchema())
-                .orElse(null);
+                .orElseThrow(() -> new BigQueryException(HTTP_NOT_FOUND, "Not Found table:" + tableId))
+                .getDefinition().getSchema();
     }
 }
