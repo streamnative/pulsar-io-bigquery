@@ -69,7 +69,7 @@ public class AvroRecordConverterTest {
         SchemaManager schemaManager = new SchemaManager(bigQueryConfig);
 
         Record<GenericRecord> recordRecordFirst = AvroRecordsUtils.getGenericRecordRecordFirst();
-        schemaManager.createTable(recordRecordFirst);
+        schemaManager.initTable(recordRecordFirst);
 
         TableSchema firstTableSchema = schemaManager.getTableSchema();
         Descriptors.Descriptor firstDescriptor = schemaManager.getDescriptor();

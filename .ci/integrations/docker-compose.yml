@@ -1,0 +1,11 @@
+version: "2.4"
+services:
+  pulsar-io-google-bigquery-test:
+    container_name: pulsar-io-bigquery-test
+    build:
+      context: ../..
+      dockerfile: .ci/integrations/Dockerfile
+    ports:
+      - 8080:8080
+      - 6650:6650
+

@@ -41,9 +41,7 @@ import org.mockito.Mockito;
  */
 public class AvroRecordsUtils {
 
-    @NotNull
-    @SuppressWarnings("unchecked")
-    public static Record<GenericRecord> getGenericRecordRecordFirst() {
+    public static Foo getFoo1() {
         Dag dag = new Dag();
         dag.setTest("first data");
         dag.setDate(23456);
@@ -72,7 +70,13 @@ public class AvroRecordsUtils {
         foo.setCol3("test col3");
         foo.setTag(tag);
         foo.setMap3(map3);
+        return foo;
+    }
 
+    @NotNull
+    @SuppressWarnings("unchecked")
+    public static Record<GenericRecord> getGenericRecordRecordFirst() {
+        Foo foo = getFoo1();
         AvroSchema<Foo> schema = AvroSchema.of(Foo.class);
         System.out.println(schema.getSchemaInfo());
         GenericSchema<GenericRecord> genericAvroSchema = new GenericAvroSchema(schema.getSchemaInfo());
@@ -186,23 +190,32 @@ public class AvroRecordsUtils {
         return record;
     }
 
+    /**
+     * Foo.
+     */
     @Data
-    static class Foo {
+    public static class Foo {
         private String col1;
         private Tag tag;
         private String col3;
         private Map<String, Dag> map3;
     }
 
+    /**
+     * Foo2.
+     */
     @Data
-    static class Foo2 {
+    public static class Foo2 {
         private String col1;
         private Tag tag;
         private String col4;
         private Map<String, Dag> map3;
     }
 
-    static class Tag {
+    /**
+     * Tag.
+     */
+    public static class Tag {
         private boolean booleanv;
         private double doublev;
         private float floatv;
@@ -213,8 +226,11 @@ public class AvroRecordsUtils {
         private char charv;
     }
 
+    /**
+     * Dag.
+     */
     @Data
-    static class Dag {
+    public static class Dag {
         private String test;
         private List<String> array;
         @org.apache.avro.reflect.AvroSchema("{ \"type\": \"bytes\", \"logicalType\": \"decimal\", \"precision\": 5, "

@@ -76,16 +76,8 @@ public class BigQuerySink implements Sink<GenericRecord> {
 
         // 0. Try to create table and init bigquery resources
         if (!init) {
-            schemaManager.createTable(record);
-            while (true) {
-                try {
-                    updateBigQueryResources();
-                    break;
-                } catch (Exception e) {
-                    // ignore exception.
-                    Thread.sleep(1000);
-                }
-            }
+            schemaManager.initTable(record);
+            tryUpdateBigqueryResources();
             init = true;
         }
 
@@ -110,7 +102,7 @@ public class BigQuerySink implements Sink<GenericRecord> {
         }
     }
 
-    private void writeRecord(Record<GenericRecord> record) throws Exception {
+    private void writeRecord(Record<GenericRecord> record) {
 
         // convert record and try update schema.
         ProtoRows protoRows = convertRecord(record);
@@ -121,51 +113,62 @@ public class BigQuerySink implements Sink<GenericRecord> {
             return;
         } catch (Exception e) {
             // TODO Refinement exceptions, other exceptions, throw exceptions directly
-            log.error("Append record field, try update schema", e);
+            log.warn("Append record field, try update schema: <{}>", e.getMessage());
             schemaManager.updateSchema(record);
         }
 
         // Bigquery resource update is delayed, try a few more times.
-        int tryCount = 0;
-        while (tryCount++ < 5) {
-            Thread.sleep(1000);
-            try {
-                updateBigQueryResources();
-                streamWriter.append(protoRows).get();
-                return;
-            } catch (Exception e) {
-                // TODO Refinement exceptions, other exceptions, throw exceptions directly
-                log.warn("Try append to record <{}>", tryCount, e);
-            }
+        try {
+            tryUpdateBigqueryResources();
+            streamWriter.append(protoRows).get();
+            return;
+        } catch (Exception e) {
+            // TODO Refinement exceptions, other exceptions, throw exceptions directly
+            throw new BigQueryConnectorRuntimeException(
+                    "Append record failed, after trying to update the schema it still fails");
         }
-        throw new BigQueryConnectorRuntimeException(
-                "Append record failed, after trying to update the schema it still fails");
+
     }
 
-    private ProtoRows convertRecord(Record<GenericRecord> record) throws Exception {
+    private ProtoRows convertRecord(Record<GenericRecord> record) {
         try {
             return recordConverter.convertRecord(record, schemaManager.getDescriptor(),
                     schemaManager.getTableSchema().getFieldsList());
         } catch (RecordConvertException e) {
             // Not care why exception, try to update the schema directly and get the latest tableSchema.
-            log.warn("Convert failed to record, try update schema", e);
+            log.warn("Convert failed to record, try update schema: <{}>", e.getMessage());
             schemaManager.updateSchema(record);
         }
 
         // Bigquery resource update is delayed, try a few more times.
+        try {
+            tryUpdateBigqueryResources();
+            return recordConverter.convertRecord(record, schemaManager.getDescriptor(),
+                    schemaManager.getTableSchema().getFieldsList());
+        } catch (Exception e) {
+            throw new BigQueryConnectorRuntimeException(
+                    "Convert record failed, after trying to update the schema it still fails", e);
+        }
+    }
+
+    private void tryUpdateBigqueryResources() throws Exception {
         int tryCount = 0;
-        while (tryCount++ < 5) {
-            Thread.sleep(1000);
+        while (true) {
+            Thread.sleep(5000);
             try {
                 updateBigQueryResources();
-                return recordConverter.convertRecord(record, schemaManager.getDescriptor(),
-                        schemaManager.getTableSchema().getFieldsList());
-            } catch (RecordConvertException e) {
-                log.warn("Try convert to record <{}>", tryCount, e);
+                return;
+            } catch (Exception e) {
+                if (tryCount == 5) {
+                    throw new BigQueryConnectorRuntimeException(
+                            "Update big query resources failed, it doesn't work even after 5 tries, please check", e);
+                } else {
+                    tryCount++;
+                    log.warn("Update big query resources count <{}> failed, Retry after 5 seconds <{}>",
+                            tryCount, e.getMessage());
+                }
             }
         }
-        throw new BigQueryConnectorRuntimeException(
-                "Convert record failed, after trying to update the schema it still fails");
     }
 
     private void updateBigQueryResources() throws Exception {
@@ -181,6 +184,6 @@ public class BigQuerySink implements Sink<GenericRecord> {
                 .newBuilder(writeStream.getName(), client)
                 .setWriterSchema(schemaManager.getProtoSchema())
                 .build();
-        log.info("Start new write stream: {}", writeStream.getName());
+        log.info("Update resources success, start new write stream: {}", writeStream.getName());
     }
 }

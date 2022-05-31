@@ -28,10 +28,10 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.avro.LogicalType;
+import org.apache.avro.LogicalTypes;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
 import org.apache.pulsar.ecosystem.io.bigquery.utils.TimeUtils;
-import org.apache.pulsar.shade.org.apache.avro.LogicalType;
-import org.apache.pulsar.shade.org.apache.avro.LogicalTypes;
 
 /**
  * Avro logical field convert.
@@ -90,6 +90,7 @@ public class AvroLogicalFieldConvert implements LogicalFieldConvert<LogicalType>
                                 (Long) pulsarFieldValue / 1000));
                     }
                 }
+
                 break;
             case TIME:
                 if (pulsarFieldValue instanceof Long) {

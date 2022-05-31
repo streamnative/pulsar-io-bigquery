@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.ecosystem.io.bigquery;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteSettings;
 import java.io.ByteArrayInputStream;
@@ -35,11 +38,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Data;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
-import org.apache.pulsar.shade.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.pulsar.shade.com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 /**
  * Big query config.
@@ -101,9 +101,13 @@ public class BigQueryConfig implements Serializable {
     @FieldDoc(required = false,
             defaultValue = "",
             help = "Authentication key, use the environment variable to get the key when key is empty."
-                + " Key acquisition reference: \n"
-                + "https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries#before-you-begin")
+                    + " Key acquisition reference: \n"
+                    + "https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries#before-you-begin")
     private String keyJson;
+
+    public TableId getTableId() {
+        return TableId.of(projectId, datasetName, tableName);
+    }
 
     public Set<String> getDefaultSystemField() {
         Set<String> fields = Optional.ofNullable(defaultSystemField)
@@ -127,7 +131,7 @@ public class BigQueryConfig implements Serializable {
     }
 
     public BigQuery createBigQuery() throws IOException {
-        if (!StringUtils.isEmpty(keyJson)) {
+        if (keyJson != null && !keyJson.isEmpty()) {
             return BigQueryOptions.newBuilder().setCredentials(getGoogleCredentials()).build().getService();
         } else {
             return BigQueryOptions.getDefaultInstance().getService();
@@ -135,7 +139,7 @@ public class BigQueryConfig implements Serializable {
     }
 
     public BigQueryWriteClient createBigQueryWriteClient() throws IOException {
-        if (!StringUtils.isEmpty(keyJson)) {
+        if (keyJson != null && !keyJson.isEmpty()) {
             BigQueryWriteSettings settings =
                     BigQueryWriteSettings.newBuilder().setCredentialsProvider(() -> getGoogleCredentials()).build();
             return BigQueryWriteClient.create(settings);
@@ -158,6 +162,8 @@ public class BigQueryConfig implements Serializable {
 
     public static BigQueryConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), BigQueryConfig.class);
+        BigQueryConfig bigQueryConfig =
+                mapper.readValue(new ObjectMapper().writeValueAsString(map), BigQueryConfig.class);
+        return bigQueryConfig;
     }
 }

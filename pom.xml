@@ -48,6 +48,8 @@
     <jackson.version>2.9.7</jackson.version>
     <lombok.version>1.16.22</lombok.version>
     <pulsar.version>2.10.0</pulsar.version>
+    <avro.version>1.10.2</avro.version>
+    <google.cloud.version>25.1.0</google.cloud.version>
 
     <!-- test dependencies -->
     <junit.version>4.12</junit.version>
@@ -84,7 +86,7 @@
       </dependency>
       <dependency>
         <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar-client-all</artifactId>
+        <artifactId>pulsar-client-original</artifactId>
         <version>${pulsar.version}</version>
       </dependency>
       <dependency>
@@ -97,6 +99,34 @@
         <artifactId>spotbugs-annotations</artifactId>
         <version>${spotbugs-annotations.version}</version>
       </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.dataformat</groupId>
+        <artifactId>jackson-dataformat-yaml</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro</artifactId>
+        <version>${avro.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro-protobuf</artifactId>
+        <version>${avro.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>libraries-bom</artifactId>
+        <version>${google.cloud.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
       <!-- test dependencies -->
       <dependency>
         <groupId>junit</groupId>
@@ -123,26 +153,16 @@
         <artifactId>testcontainers</artifactId>
         <version>${testcontainers.version}</version>
       </dependency>
-        <dependency>
-          <groupId>com.google.cloud</groupId>
-          <artifactId>libraries-bom</artifactId>
-          <version>25.1.0</version>
-          <type>pom</type>
-          <scope>import</scope>
-        </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-simple</artifactId>
+        <version>${slf4j.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
   <!-- include the dependencies -->
   <dependencies>
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-bigquery</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-bigquerystorage</artifactId>
-    </dependency>
 
     <!-- provided dependencies (available at compilation and test classpaths and *NOT* packaged) -->
     <dependency>
@@ -155,15 +175,49 @@
       <artifactId>spotbugs-annotations</artifactId>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.dataformat</groupId>
+      <artifactId>jackson-dataformat-yaml</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro-protobuf</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.protobuf</groupId>
+          <artifactId>protobuf-java</artifactId>
+        </exclusion>
+      </exclusions>
+      <scope>provided</scope>
+    </dependency>
 
     <!-- runtime dependencies -->
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-bigquery</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-bigquerystorage</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-io-core</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-client-all</artifactId>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
     </dependency>
 
     <!-- test dependencies -->
@@ -195,9 +249,14 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-simple</artifactId>
-      <version>${slf4j.version}</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-client-original</artifactId>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>
@@ -260,9 +319,10 @@
             <excludes>
               <exclude>LICENSE</exclude>
               <exclude>NOTICE</exclude>
-              <exclude>.github/**/*.yml</exclude>
+              <exclude>.github/**</exclude>
               <exclude>**/*.template</exclude>
               <exclude>.ci/**</exclude>
+              <exclude>.java-version</exclude>
             </excludes>
             <mapping>
               <proto>JAVADOC_STYLE</proto>
