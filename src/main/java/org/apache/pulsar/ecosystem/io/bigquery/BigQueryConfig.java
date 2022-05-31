@@ -103,7 +103,7 @@ public class BigQueryConfig implements Serializable {
             help = "Authentication key, use the environment variable to get the key when key is empty."
                     + " Key acquisition reference: \n"
                     + "https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries#before-you-begin")
-    private String keyJson;
+    private String credentialJsonString;
 
     public TableId getTableId() {
         return TableId.of(projectId, datasetName, tableName);
@@ -131,7 +131,7 @@ public class BigQueryConfig implements Serializable {
     }
 
     public BigQuery createBigQuery() throws IOException {
-        if (keyJson != null && !keyJson.isEmpty()) {
+        if (credentialJsonString != null && !credentialJsonString.isEmpty()) {
             return BigQueryOptions.newBuilder().setCredentials(getGoogleCredentials()).build().getService();
         } else {
             return BigQueryOptions.getDefaultInstance().getService();
@@ -139,7 +139,7 @@ public class BigQueryConfig implements Serializable {
     }
 
     public BigQueryWriteClient createBigQueryWriteClient() throws IOException {
-        if (keyJson != null && !keyJson.isEmpty()) {
+        if (credentialJsonString != null && !credentialJsonString.isEmpty()) {
             BigQueryWriteSettings settings =
                     BigQueryWriteSettings.newBuilder().setCredentialsProvider(() -> getGoogleCredentials()).build();
             return BigQueryWriteClient.create(settings);
@@ -151,7 +151,7 @@ public class BigQueryConfig implements Serializable {
 
     private GoogleCredentials getGoogleCredentials() throws IOException {
         GoogleCredentials googleCredentials = GoogleCredentials
-                .fromStream(new ByteArrayInputStream(keyJson.getBytes(StandardCharsets.UTF_8)));
+                .fromStream(new ByteArrayInputStream(credentialJsonString.getBytes(StandardCharsets.UTF_8)));
         return googleCredentials;
     }
 

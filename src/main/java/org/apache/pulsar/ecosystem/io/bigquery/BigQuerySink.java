@@ -91,15 +91,8 @@ public class BigQuerySink implements Sink<GenericRecord> {
 
     @Override
     public void close() {
-        if (streamWriter != null) {
-            streamWriter.close();
-        }
-        if (writeStream != null) {
-            // Finalize the stream after use.
-            FinalizeWriteStreamRequest finalizeWriteStreamRequest =
-                    FinalizeWriteStreamRequest.newBuilder().setName(writeStream.getName()).build();
-            client.finalizeWriteStream(finalizeWriteStreamRequest);
-        }
+        closeStream();
+        client.close();
     }
 
     private void writeRecord(Record<GenericRecord> record) {
@@ -171,8 +164,20 @@ public class BigQuerySink implements Sink<GenericRecord> {
         }
     }
 
+    private void closeStream() {
+        if (streamWriter != null) {
+            streamWriter.close();
+        }
+        if (writeStream != null) {
+            // Finalize the stream after use.
+            FinalizeWriteStreamRequest finalizeWriteStreamRequest =
+                    FinalizeWriteStreamRequest.newBuilder().setName(writeStream.getName()).build();
+            client.finalizeWriteStream(finalizeWriteStreamRequest);
+        }
+    }
+
     private void updateBigQueryResources() throws Exception {
-        close();
+        closeStream();
         CreateWriteStreamRequest createWriteStreamRequest =
                 CreateWriteStreamRequest.newBuilder()
                         .setParent(this.tableName.toString())

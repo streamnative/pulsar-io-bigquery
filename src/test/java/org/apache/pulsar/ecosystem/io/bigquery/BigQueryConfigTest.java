@@ -60,11 +60,11 @@ public class BigQueryConfigTest {
     public void testLoad() throws IOException {
         Map<String, Object> mapConfig = new HashMap<>();
         mapConfig.put("autoUpdateTable", true);
-        mapConfig.put("keyJson", "test-key");
+        mapConfig.put("credentialJsonString", "test-key");
 
         BigQueryConfig config = BigQueryConfig.load(mapConfig);
         assertTrue(config.isAutoUpdateTable());
-        assertEquals(config.getKeyJson(), "test-key");
+        assertEquals(config.getCredentialJsonString(), "test-key");
     }
 
 }

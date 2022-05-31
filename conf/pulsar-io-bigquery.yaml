@@ -82,4 +82,4 @@ configs:
   #
   # This field is optional.
   #
-  keyJson: ""
+  credentialJsonString: ""
