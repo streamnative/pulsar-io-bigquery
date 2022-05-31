@@ -77,7 +77,7 @@ public class AvroDataConvertTestIntegration {
         // 3. query and assert
         Thread.sleep(20000);
         TableResult tableResult = queryResult(bigQuery);
-        assertEquals(10, tableResult.getTotalRows());
+        assertEquals(9, tableResult.getTotalRows());
         for (FieldValueList fieldValues : tableResult.iterateAll()) {
             assertEquals(pulsarProducerName, fieldValues.get("__producer_name__").getStringValue());
             assertEquals("test col2", fieldValues.get("col1").getStringValue());
