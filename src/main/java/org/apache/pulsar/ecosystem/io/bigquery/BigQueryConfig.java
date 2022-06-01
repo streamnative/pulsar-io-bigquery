@@ -67,18 +67,18 @@ public class BigQueryConfig implements Serializable {
     @FieldDoc(required = false,
             defaultValue = "false",
             help = "Create a partitioned table when the table is automatically created,"
-                    + "it will use __message_id__ the partition key.")
+                    + "it will use __event_time__ the partition key.")
     private boolean partitionedTables;
 
     @FieldDoc(required = false,
             defaultValue = "7",
-            help = "clusteredTableIntervalDay is number of days between partitioning of the partitioned table")
+            help = "partitionedTableIntervalDay is number of days between partitioning of the partitioned table")
     private int partitionedTableIntervalDay;
 
     @FieldDoc(required = false,
             defaultValue = "false",
             help = "Create a clusteredTables table when the table is automatically created,"
-                    + "it will use __event_time__ the partition key.")
+                    + "it will use __message_id__ the partition key.")
     private boolean clusteredTables;
 
     @FieldDoc(required = false,
@@ -121,10 +121,10 @@ public class BigQueryConfig implements Serializable {
                             return trim;
                         }).collect(Collectors.toSet())
                 ).orElse(new HashSet<>());
-        if (clusteredTables) {
+        if (partitionedTables) {
             fields.add("__event_time__");
         }
-        if (partitionedTables) {
+        if (clusteredTables) {
             fields.add("__message_id__");
         }
         return fields;

@@ -40,7 +40,7 @@ import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.Descriptors;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -119,31 +119,28 @@ public class SchemaManager {
                 throw e;
             }
         }
-        try {
-            Schema schema = schemaConvert.convertSchema(records);
-            StandardTableDefinition.Builder tableDefinition = StandardTableDefinition.newBuilder()
-                    .setSchema(schema);
-            if (partitionedTables) {
-                TimePartitioning partitioning =
-                        TimePartitioning.newBuilder(TimePartitioning.Type.DAY)
-                                .setField("__event_time__") //  name of column to use for partitioning
-                                .setExpirationMs(TimeUnit.MILLISECONDS.
-                                        convert(partitionedTableIntervalDay, TimeUnit.DAYS))
-                                .build();
-                tableDefinition.setTimePartitioning(partitioning);
-            }
-            if (clusteredTables) {
-                Clustering clustering =
-                        Clustering.newBuilder().setFields(Arrays.asList("__message_id__")).build();
-                tableDefinition.setClustering(clustering);
-            }
-            TableInfo tableInfo = TableInfo.newBuilder(tableId, tableDefinition.build()).build();
-            bigquery.create(tableInfo);
-            updateCacheSchema(schema);
-            log.info("create table success <{}>", tableId);
-        } catch (Exception e) {
-            throw e;
-        }
+
+       Schema schema = schemaConvert.convertSchema(records);
+       StandardTableDefinition.Builder tableDefinition = StandardTableDefinition.newBuilder()
+               .setSchema(schema);
+       if (partitionedTables) {
+           TimePartitioning partitioning =
+                   TimePartitioning.newBuilder(TimePartitioning.Type.DAY)
+                           .setField("__event_time__") //  name of column to use for partitioning
+                           .setExpirationMs(TimeUnit.MILLISECONDS.
+                                   convert(partitionedTableIntervalDay, TimeUnit.DAYS))
+                           .build();
+           tableDefinition.setTimePartitioning(partitioning);
+       }
+       if (clusteredTables) {
+           Clustering clustering =
+                   Clustering.newBuilder().setFields(Collections.singletonList("__message_id__")).build();
+           tableDefinition.setClustering(clustering);
+       }
+       TableInfo tableInfo = TableInfo.newBuilder(tableId, tableDefinition.build()).build();
+       bigquery.create(tableInfo);
+       updateCacheSchema(schema);
+       log.info("create table success <{}>", tableId);
     }
 
     /**
@@ -205,16 +202,7 @@ public class SchemaManager {
         Map<String, Field> mergeFields = new LinkedHashMap<>();
         pulsarFields.forEach((name, pulsarField) -> {
             Field bigqueryField = bigQueryFields.get(name);
-            if (bigqueryField == null) {
-                // add field must is REQUIRED or NULLABLE
-                if (!Field.Mode.REPEATED.equals(pulsarField.getMode())) {
-                    mergeFields.put(name, pulsarField.toBuilder().setMode(Field.Mode.NULLABLE).build());
-                } else {
-                    mergeFields.put(name, pulsarField);
-                }
-            } else {
-                mergeFields.put(name, mergeFields(bigqueryField, pulsarField));
-            }
+            mergeFields.put(name, mergeFields(bigqueryField, pulsarField));
         });
         // If missing fields by pulsar schema, set these field type to NULLABLE
         addMergeFields(bigQueryFields, mergeFields);
@@ -222,6 +210,21 @@ public class SchemaManager {
     }
 
     private Field mergeFields(Field bigQueryField, Field pulsarField) {
+
+        if (bigQueryField == null && pulsarField == null) {
+            throw new IllegalArgumentException("Both fields cannot be null at the same time");
+        }
+
+        if (bigQueryField == null || pulsarField == null) {
+            Field sourceField = bigQueryField == null ? pulsarField : bigQueryField;
+            // add field must is REQUIRED or NULLABLE
+            if (!Field.Mode.REPEATED.equals(sourceField.getMode())) {
+                return sourceField.toBuilder().setMode(Field.Mode.NULLABLE).build();
+            } else {
+                return sourceField;
+            }
+        }
+
         checkState(bigQueryField.getName().equals(pulsarField.getName()),
                 String.format("Field name different, bigQueryFieldName: %s, pulsarFieldName: %s",
                         bigQueryField.getName(), pulsarField.getName()));
@@ -236,16 +239,7 @@ public class SchemaManager {
             Map<String, Field> mergeSubFields = new LinkedHashMap<>();
             pulsarSubFields.forEach((name, pulsarSubField) -> {
                 Field bqSubField = bqSubFields.get(name);
-                if (bqSubField == null) {
-                    // add field must is REPEATED or NULLABLE
-                    if (!Field.Mode.REQUIRED.equals(pulsarSubField.getMode())) {
-                        mergeSubFields.put(name, pulsarSubField.toBuilder().setMode(Field.Mode.NULLABLE).build());
-                    } else {
-                        mergeSubFields.put(name, pulsarSubField);
-                    }
-                } else {
-                    mergeSubFields.put(name, mergeFields(bqSubField, pulsarSubField));
-                }
+                mergeSubFields.put(name, mergeFields(bqSubField, pulsarSubField));
             });
             // If missing fields by pulsar schema, set these field type to NULLABLE
             addMergeFields(bqSubFields, mergeSubFields);

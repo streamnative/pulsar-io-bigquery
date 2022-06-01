@@ -18,7 +18,7 @@ configs:
   tableName: "integration_table"
 
   # Create a partitioned table when the table is automatically created.
-  # It will use __message_id__ the partition key.
+  # It will use __event_time__ the partition key.
   #
   # This field is optional.
   #
@@ -31,7 +31,7 @@ configs:
   partitionedTableIntervalDay: 7
 
   # Create a clusteredTables table when the table is automatically created.
-  # It will use __event_time__ the partition key.
+  # It will use __message_id__ the partition key.
   #
   # This field is optional.
   #
