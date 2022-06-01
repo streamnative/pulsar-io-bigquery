@@ -22,7 +22,7 @@ import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
 import com.google.protobuf.Descriptors;
 import java.util.List;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.RecordConvertException;
 import org.apache.pulsar.functions.api.Record;
 
@@ -42,7 +42,7 @@ public interface RecordConverter {
      *  1. When there are fields in Pulsar that are not in BigQuery.
      *  2. When there is a field in BigQuery that is not in Pulsar, and it is set to a required type.
      */
-    ProtoRows convertRecord(Record<GenericRecord> record,
+    ProtoRows convertRecord(Record<GenericObject> record,
                             Descriptors.Descriptor protoSchema,
                             List<TableFieldSchema> tableFieldSchema) throws RecordConvertException;
 

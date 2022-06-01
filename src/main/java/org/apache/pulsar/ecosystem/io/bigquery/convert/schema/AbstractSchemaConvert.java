@@ -27,7 +27,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.DefaultSystemFieldConvert;
 import org.apache.pulsar.functions.api.Record;
 
@@ -44,7 +44,7 @@ public abstract class AbstractSchemaConvert implements SchemaConvert {
     }
 
     @Override
-    public Schema convertSchema(Record<GenericRecord> record) {
+    public Schema convertSchema(Record<GenericObject> record) {
         List<Field> systemField = convertSystemField();
         systemField.addAll(convertUserSchema(record));
         return Schema.of(systemField);
@@ -56,7 +56,7 @@ public abstract class AbstractSchemaConvert implements SchemaConvert {
      * @param record
      * @return
      */
-    protected abstract List<Field> convertUserSchema(Record<GenericRecord> record);
+    protected abstract List<Field> convertUserSchema(Record<GenericObject> record);
 
     private List<Field> convertSystemField() {
         return Optional.ofNullable(systemFieldNames)

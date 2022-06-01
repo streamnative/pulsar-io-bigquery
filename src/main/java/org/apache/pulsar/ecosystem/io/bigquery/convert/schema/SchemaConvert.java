@@ -19,7 +19,7 @@
 package org.apache.pulsar.ecosystem.io.bigquery.convert.schema;
 
 import com.google.cloud.bigquery.Schema;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
 
 /**
@@ -33,6 +33,6 @@ public interface SchemaConvert {
      * @param record
      * @return
      */
-    Schema convertSchema(Record<GenericRecord> record);
+    Schema convertSchema(Record<GenericObject> record);
 
 }

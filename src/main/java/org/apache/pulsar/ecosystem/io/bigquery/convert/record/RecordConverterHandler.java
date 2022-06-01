@@ -24,7 +24,7 @@ import com.google.protobuf.Descriptors;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.RecordConvertException;
@@ -42,7 +42,7 @@ public class RecordConverterHandler implements RecordConverter {
     }
 
     @Override
-    public ProtoRows convertRecord(Record<GenericRecord> record,
+    public ProtoRows convertRecord(Record<GenericObject> record,
                                    Descriptors.Descriptor protoSchema,
                                    List<TableFieldSchema> tableFieldSchema) throws RecordConvertException {
         SchemaType type = record.getSchema().getSchemaInfo().getType();

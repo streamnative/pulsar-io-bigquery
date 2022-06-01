@@ -42,7 +42,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
 import org.apache.pulsar.functions.api.Record;
 import org.junit.Before;
@@ -64,8 +64,9 @@ public class SchemaManagerTest {
         bigQueryConfig.setTableName("table_name");
     }
 
-    @SneakyThrows
     @Test
+    @SneakyThrows
+    @SuppressWarnings("unchecked")
     public void testCreateAndUpdateTable() {
         BigQueryMock bigQueryMock = new BigQueryMock();
         doReturn(bigQueryMock.getBigQuery()).when(bigQueryConfig).createBigQuery();
@@ -76,7 +77,7 @@ public class SchemaManagerTest {
         bigQueryConfig.setPartitionedTableIntervalDay(10);
 
         SchemaManager schemaManager = new SchemaManager(bigQueryConfig);
-        Record<GenericRecord> genericRecordRecordFirst = AvroRecordsUtils.getGenericRecordRecordFirst();
+        Record<GenericObject> genericRecordRecordFirst = AvroRecordsUtils.getGenericRecordRecordFirst();
 
         // create table
         schemaManager.initTable(genericRecordRecordFirst);
@@ -118,13 +119,13 @@ public class SchemaManagerTest {
         bigQueryConfig.setAutoUpdateTable(false);
         SchemaManager schemaManager2 = new SchemaManager(bigQueryConfig);
         try {
-            schemaManager2.updateSchema(genericRecordRecordFirst);
+            schemaManager2.updateSchema((Record<GenericObject>) genericRecordRecordFirst);
             fail("Should has failed");
         } catch (BigQueryConnectorRuntimeException e) {
         }
 
         // update schema, add col4 to schema and update col3 model to NULLABLE
-        Record<GenericRecord> genericRecordRecordSecond = AvroRecordsUtils.getGenericRecordRecordSecond();
+        Record<GenericObject> genericRecordRecordSecond = AvroRecordsUtils.getGenericRecordRecordSecond();
         schemaManager.updateSchema(genericRecordRecordSecond);
         Schema allSchema = bigQueryMock.getSchema();
         assertNotNull(allSchema.getFields().get("col3"));

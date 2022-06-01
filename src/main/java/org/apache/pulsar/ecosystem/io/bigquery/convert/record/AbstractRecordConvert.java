@@ -25,7 +25,7 @@ import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.UninitializedMessageException;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.DefaultSystemFieldConvert;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.RecordConvertException;
 import org.apache.pulsar.functions.api.Record;
@@ -37,13 +37,13 @@ import org.apache.pulsar.functions.api.Record;
 public abstract class AbstractRecordConvert implements RecordConverter {
 
     @Override
-    public ProtoRows convertRecord(Record<GenericRecord> record, Descriptors.Descriptor protoSchema,
+    public ProtoRows convertRecord(Record<GenericObject> record, Descriptors.Descriptor protoSchema,
                                    List<TableFieldSchema> tableFieldSchema) throws RecordConvertException {
-        GenericRecord genericRecord = record.getValue();
+        GenericObject genericObject = record.getValue();
         ProtoRows.Builder rowsBuilder = ProtoRows.newBuilder();
         DynamicMessage.Builder protoMsg = DynamicMessage.newBuilder(protoSchema);
         convertSystemField(protoMsg, record, protoSchema, tableFieldSchema);
-        convertUserField(protoMsg, genericRecord.getNativeObject(), protoSchema, tableFieldSchema);
+        convertUserField(protoMsg, genericObject.getNativeObject(), protoSchema, tableFieldSchema);
         DynamicMessage dynamicMessage = buildMessage(protoMsg);
         rowsBuilder.addSerializedRows(dynamicMessage.toByteString());
         return rowsBuilder.build();
@@ -54,7 +54,7 @@ public abstract class AbstractRecordConvert implements RecordConverter {
                                                List<TableFieldSchema> tableFieldSchema) throws RecordConvertException;
 
 
-    private void convertSystemField(DynamicMessage.Builder protoMsg, Record<GenericRecord> record,
+    private void convertSystemField(DynamicMessage.Builder protoMsg, Record<GenericObject> record,
                                     Descriptors.Descriptor protoDescriptor,
                                     List<TableFieldSchema> tableFieldSchema) {
         for (Descriptors.FieldDescriptor pbField : protoDescriptor.getFields()) {

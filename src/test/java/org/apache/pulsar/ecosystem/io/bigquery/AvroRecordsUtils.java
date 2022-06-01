@@ -28,6 +28,7 @@ import lombok.Data;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -75,7 +76,7 @@ public class AvroRecordsUtils {
 
     @NotNull
     @SuppressWarnings("unchecked")
-    public static Record<GenericRecord> getGenericRecordRecordFirst() {
+    public static Record<GenericObject> getGenericRecordRecordFirst() {
         Foo foo = getFoo1();
         AvroSchema<Foo> schema = AvroSchema.of(Foo.class);
         System.out.println(schema.getSchemaInfo());
@@ -88,7 +89,7 @@ public class AvroRecordsUtils {
         Message message = Mockito.mock(Message.class);
         Mockito.when(message.getMessageId()).thenReturn(messageId);
 
-        Record<GenericRecord> record = new Record<GenericRecord>() {
+        Record<? extends GenericObject> record = new Record<GenericRecord>() {
 
             @Override
             public Schema<GenericRecord> getSchema() {
@@ -115,12 +116,12 @@ public class AvroRecordsUtils {
                 System.out.println("ack message");
             }
         };
-        return record;
+        return (Record<GenericObject>) record;
     }
 
     @NotNull
     @SuppressWarnings("unchecked")
-    public static Record<GenericRecord> getGenericRecordRecordSecond() {
+    public static Record<GenericObject> getGenericRecordRecordSecond() {
         Dag dag = new Dag();
         dag.setTest("first data");
         dag.setDate(23456);
@@ -160,7 +161,7 @@ public class AvroRecordsUtils {
 
         Message message = Mockito.mock(Message.class);
         Mockito.when(message.getMessageId()).thenReturn(messageId);
-        Record<GenericRecord> record = new Record<GenericRecord>() {
+        Record<? extends GenericObject> record = new Record<GenericRecord>() {
 
             @Override
             public Schema<GenericRecord> getSchema() {
@@ -187,7 +188,7 @@ public class AvroRecordsUtils {
                 System.out.println("ack message");
             }
         };
-        return record;
+        return (Record<GenericObject>) record;
     }
 
     /**

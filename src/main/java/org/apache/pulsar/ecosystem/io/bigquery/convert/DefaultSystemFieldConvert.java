@@ -21,7 +21,7 @@ package org.apache.pulsar.ecosystem.io.bigquery.convert;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
 import org.apache.pulsar.functions.api.Record;
 
@@ -66,10 +66,10 @@ public final class DefaultSystemFieldConvert {
      * @param record
      * @return
      */
-    public static Object convert(String fieldName, Record<GenericRecord> record) {
+    public static Object convert(String fieldName, Record<GenericObject> record) {
         switch (fieldName) {
             case "__schema_version__":
-                return record.getValue().getSchemaVersion();
+                return record.getMessage().get().getSchemaVersion();
             case "__partition__":
                 return record.getPartitionIndex().get();
             case "__event_time__":

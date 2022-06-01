@@ -50,7 +50,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.schema.SchemaConvert;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.schema.SchemaConvertHandler;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
@@ -101,7 +101,7 @@ public class SchemaManager {
      *
      * @param records
      */
-    public void initTable(Record<GenericRecord> records) {
+    public void initTable(Record<GenericObject> records) {
         try {
             Schema schema = fetchTableSchema();
             updateCacheSchema(schema);
@@ -151,7 +151,7 @@ public class SchemaManager {
      *
      * @param records
      */
-    public void updateSchema(Record<GenericRecord> records) {
+    public void updateSchema(Record<GenericObject> records) {
         if (!autoUpdateTable) {
             throw new BigQueryConnectorRuntimeException("Table cannot be update,"
                     + " autoUpdateTable == false.");

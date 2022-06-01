@@ -26,7 +26,7 @@ import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Schema;
 import com.google.common.collect.Sets;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.AvroRecordsUtils;
 import org.apache.pulsar.functions.api.Record;
 import org.junit.Test;
@@ -39,7 +39,7 @@ public class AvroSchemaConvertTest {
     @Test
     public void convertUserSchema() {
 
-        Record<GenericRecord> records = AvroRecordsUtils.getGenericRecordRecordFirst();
+        Record<GenericObject> records = AvroRecordsUtils.getGenericRecordRecordFirst();
 
         AvroSchemaConvert avroSchemaConvert =
                 new AvroSchemaConvert(Sets.newHashSet("__event_time__", "__message_id__", "abc"));

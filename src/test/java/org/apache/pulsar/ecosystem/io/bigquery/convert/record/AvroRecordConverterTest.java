@@ -35,7 +35,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.AvroRecordsUtils;
 import org.apache.pulsar.ecosystem.io.bigquery.BigQueryConfig;
 import org.apache.pulsar.ecosystem.io.bigquery.SchemaManager;
@@ -51,6 +51,7 @@ import org.junit.Test;
 public class AvroRecordConverterTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testConvertRecord() throws IOException, RecordConvertException {
 
         AvroRecordConverter avroRecordConverter = new AvroRecordConverter();
@@ -68,7 +69,7 @@ public class AvroRecordConverterTest {
         bigQueryConfig.setPartitionedTableIntervalDay(10);
         SchemaManager schemaManager = new SchemaManager(bigQueryConfig);
 
-        Record<GenericRecord> recordRecordFirst = AvroRecordsUtils.getGenericRecordRecordFirst();
+        Record<GenericObject> recordRecordFirst = AvroRecordsUtils.getGenericRecordRecordFirst();
         schemaManager.initTable(recordRecordFirst);
 
         TableSchema firstTableSchema = schemaManager.getTableSchema();
@@ -83,7 +84,7 @@ public class AvroRecordConverterTest {
         assertConvertResult(dynamicMessage);
 
         // second convert, miss col4 field
-        Record<GenericRecord> recordRecordSecond = AvroRecordsUtils.getGenericRecordRecordSecond();
+        Record<GenericObject> recordRecordSecond = AvroRecordsUtils.getGenericRecordRecordSecond();
         try {
             avroRecordConverter.convertRecord(recordRecordSecond, firstDescriptor, firstTableSchema.getFieldsList());
             fail("Should has failed");

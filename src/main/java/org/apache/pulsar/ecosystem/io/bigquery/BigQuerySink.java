@@ -28,7 +28,7 @@ import com.google.cloud.bigquery.storage.v1.WriteStream;
 import java.util.Map;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.record.RecordConverter;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.record.RecordConverterHandler;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
@@ -41,7 +41,7 @@ import org.apache.pulsar.io.core.SinkContext;
  * BigQuery Sink impl.
  */
 @Slf4j
-public class BigQuerySink implements Sink<GenericRecord> {
+public class BigQuerySink implements Sink<GenericObject> {
 
     // bigquery
     private BigQueryWriteClient client;
@@ -72,7 +72,7 @@ public class BigQuerySink implements Sink<GenericRecord> {
     }
 
     @Override
-    public void write(Record<GenericRecord> record) throws Exception {
+    public void write(Record<GenericObject> record) throws Exception {
 
         // 0. Try to create table and init bigquery resources
         if (!init) {
@@ -97,7 +97,7 @@ public class BigQuerySink implements Sink<GenericRecord> {
         client.close();
     }
 
-    private void writeRecord(Record<GenericRecord> record) {
+    private void writeRecord(Record<GenericObject> record) {
 
         // convert record and try update schema.
         ProtoRows protoRows = convertRecord(record);
@@ -125,7 +125,7 @@ public class BigQuerySink implements Sink<GenericRecord> {
 
     }
 
-    private ProtoRows convertRecord(Record<GenericRecord> record) {
+    private ProtoRows convertRecord(Record<GenericObject> record) {
         try {
             return recordConverter.convertRecord(record, schemaManager.getDescriptor(),
                     schemaManager.getTableSchema().getFieldsList());

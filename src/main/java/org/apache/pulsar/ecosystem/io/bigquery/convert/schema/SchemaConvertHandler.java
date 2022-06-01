@@ -22,7 +22,7 @@ import com.google.cloud.bigquery.Schema;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
 import org.apache.pulsar.functions.api.Record;
@@ -39,7 +39,7 @@ public class SchemaConvertHandler implements SchemaConvert {
     }
 
     @Override
-    public Schema convertSchema(Record<GenericRecord> records) {
+    public Schema convertSchema(Record<GenericObject> records) {
         SchemaType type = records.getSchema().getSchemaInfo().getType();
         SchemaConvert schemaConvert = schemaConverts.get(type);
         if (schemaConvert == null) {

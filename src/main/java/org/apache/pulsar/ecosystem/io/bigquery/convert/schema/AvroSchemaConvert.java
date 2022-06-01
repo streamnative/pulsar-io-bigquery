@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.avro.LogicalTypes;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.logicaltype.AvroLogicalFieldConvert;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.record.AvroRecordConverter;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
@@ -65,7 +65,7 @@ public class AvroSchemaConvert extends AbstractSchemaConvert {
     }
 
     @Override
-    protected List<Field> convertUserSchema(Record<GenericRecord> record) {
+    protected List<Field> convertUserSchema(Record<GenericObject> record) {
         org.apache.avro.generic.GenericRecord nativeRecord =
                 (org.apache.avro.generic.GenericRecord) record.getValue().getNativeObject();
         org.apache.avro.Schema schema = nativeRecord.getSchema();
