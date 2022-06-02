@@ -59,7 +59,7 @@ public class BigQuerySink implements Sink<GenericObject> {
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        this.bigQueryConfig = BigQueryConfig.load(config);
+        this.bigQueryConfig = BigQueryConfig.load(config, sinkContext);
         Objects.requireNonNull(bigQueryConfig.getProjectId(), "BigQuery project id is not set");
         Objects.requireNonNull(bigQueryConfig.getDatasetName(), "BigQuery dataset id is not set");
         Objects.requireNonNull(bigQueryConfig.getTableName(), "BigQuery table name id is not set");

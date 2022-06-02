@@ -21,13 +21,14 @@ package org.apache.pulsar.ecosystem.io.bigquery;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 import com.google.common.collect.Sets;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.io.core.SinkContext;
 import org.junit.Test;
 
 /**
@@ -57,12 +58,12 @@ public class BigQueryConfigTest {
     }
 
     @Test
-    public void testLoad() throws IOException {
+    public void testLoad() {
         Map<String, Object> mapConfig = new HashMap<>();
         mapConfig.put("autoUpdateTable", true);
         mapConfig.put("credentialJsonString", "test-key");
 
-        BigQueryConfig config = BigQueryConfig.load(mapConfig);
+        BigQueryConfig config = BigQueryConfig.load(mapConfig, mock(SinkContext.class));
         assertTrue(config.isAutoUpdateTable());
         assertEquals(config.getCredentialJsonString(), "test-key");
     }

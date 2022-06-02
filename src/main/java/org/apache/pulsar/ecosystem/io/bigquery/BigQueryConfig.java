@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.ecosystem.io.bigquery;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
@@ -27,7 +25,6 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteSettings;
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -39,6 +36,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Data;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 /**
@@ -100,8 +99,12 @@ public class BigQueryConfig implements Serializable {
 
     @FieldDoc(required = false,
             defaultValue = "",
+            sensitive = true,
             help = "Authentication key, use the environment variable to get the key when key is empty."
-                    + " Key acquisition reference: \n"
+                    + "It is recommended to set this value to null,"
+                    + "and then add the GOOGLE_APPLICATION_CREDENTIALS environment "
+                    + "variable to point to the path of the authentication key json file"
+                    + "Key acquisition reference: \n"
                     + "https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries#before-you-begin")
     private String credentialJsonString;
 
@@ -155,15 +158,7 @@ public class BigQueryConfig implements Serializable {
         return googleCredentials;
     }
 
-    public static BigQueryConfig load(String yamlFile) throws IOException {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(new File(yamlFile), BigQueryConfig.class);
-    }
-
-    public static BigQueryConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        BigQueryConfig bigQueryConfig =
-                mapper.readValue(new ObjectMapper().writeValueAsString(map), BigQueryConfig.class);
-        return bigQueryConfig;
+    public static BigQueryConfig load(Map<String, Object> map, SinkContext sinkContext) {
+        return IOConfigUtils.loadWithSecrets(map, BigQueryConfig.class, sinkContext);
     }
 }

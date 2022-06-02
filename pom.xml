@@ -81,7 +81,7 @@
     <dependencies>
       <dependency>
         <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar-io-core</artifactId>
+        <artifactId>pulsar-io-common</artifactId>
         <version>${pulsar.version}</version>
       </dependency>
       <dependency>
@@ -213,7 +213,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-io-core</artifactId>
+      <artifactId>pulsar-io-common</artifactId>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>

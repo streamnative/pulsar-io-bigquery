@@ -65,7 +65,7 @@ public class AvroRecordConverter extends AbstractRecordConvert {
             Schema avroFieldSchema;
             try {
                 value = avroNativeRecord.get(fieldName);
-                avroFieldSchema = avroSchema.getField(fieldName).schema();
+                avroFieldSchema = pickSchema(avroSchema.getField(fieldName).schema());
             } catch (Exception e) {
                 if (!DefaultSystemFieldConvert.isSystemField(fieldName)) {
                     log.warn("Not found field <{}> by avro data, ignore this field", fieldName);
@@ -127,7 +127,6 @@ public class AvroRecordConverter extends AbstractRecordConvert {
     private void fillField(DynamicMessage.Builder protoMsg, Schema avroFieldSchema, Object value,
                            Descriptors.FieldDescriptor pbFieldDescriptor, TableFieldSchema tableFieldSchema)
             throws RecordConvertException {
-        avroFieldSchema = pickSchema(avroFieldSchema);
         TableFieldSchema.Type type = tableFieldSchema.getType();
         if (avroFieldSchema.getLogicalType() != null
                 && logicalFieldConvert.isLogicType(avroFieldSchema.getLogicalType())) {
@@ -174,8 +173,8 @@ public class AvroRecordConverter extends AbstractRecordConvert {
                     }
                     break;
             }
-            throw new RecordConvertException(
-                    String.format("Not support type <%s> valueClass <%s>", type, value.getClass()));
+            log.warn("Not support type <{}> valueClass <{}>, ignore this failed<{}>",
+                                                             type, value.getClass(), avroFieldSchema.getName());
         }
     }
 
