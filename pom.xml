@@ -31,10 +31,10 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>org.apache.pulsar.ecosystem</groupId>
-  <artifactId>pulsar-io-template</artifactId>
+  <artifactId>pulsar-io-bigquery</artifactId>
   <version>0.0.1</version>
-  <name>Pulsar Ecosystem :: IO Connector :: Template Project</name>
-  <description>It is a project template for developing an Apache Pulsar connector</description>
+  <name>Pulsar Ecosystem :: IO Connector :: Big Query</name>
+  <description>It is a big query for developing an Apache Pulsar connector</description>
 
   <properties>
     <java.version>1.8</java.version>
@@ -47,13 +47,16 @@
     <!-- connector dependencies -->
     <jackson.version>2.9.7</jackson.version>
     <lombok.version>1.16.22</lombok.version>
-    <pulsar.version>2.2.0</pulsar.version>
+    <pulsar.version>2.10.0</pulsar.version>
+    <avro.version>1.10.2</avro.version>
+    <google.cloud.version>25.1.0</google.cloud.version>
 
     <!-- test dependencies -->
     <junit.version>4.12</junit.version>
     <mockito.version>2.22.0</mockito.version>
     <powermock.version>2.0.0-beta.5</powermock.version>
     <testcontainers.version>1.8.3</testcontainers.version>
+    <slf4j.version>1.7.25</slf4j.version>
 
     <!-- build plugin dependencies -->
     <license.plugin.version>3.0</license.plugin.version>
@@ -78,13 +81,13 @@
     <dependencies>
       <dependency>
         <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar-io-core</artifactId>
+        <artifactId>pulsar-io-common</artifactId>
         <version>${pulsar.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-databind</artifactId>
-        <version>${jackson.version}</version>
+        <groupId>org.apache.pulsar</groupId>
+        <artifactId>pulsar-client-original</artifactId>
+        <version>${pulsar.version}</version>
       </dependency>
       <dependency>
         <groupId>org.projectlombok</groupId>
@@ -96,6 +99,34 @@
         <artifactId>spotbugs-annotations</artifactId>
         <version>${spotbugs-annotations.version}</version>
       </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.dataformat</groupId>
+        <artifactId>jackson-dataformat-yaml</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro</artifactId>
+        <version>${avro.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro-protobuf</artifactId>
+        <version>${avro.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>libraries-bom</artifactId>
+        <version>${google.cloud.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
       <!-- test dependencies -->
       <dependency>
         <groupId>junit</groupId>
@@ -122,6 +153,11 @@
         <artifactId>testcontainers</artifactId>
         <version>${testcontainers.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-simple</artifactId>
+        <version>${slf4j.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -139,16 +175,49 @@
       <artifactId>spotbugs-annotations</artifactId>
       <scope>provided</scope>
     </dependency>
-
-    <!-- runtime dependencies -->
-    <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-io-core</artifactId>
-    </dependency>
-
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.dataformat</groupId>
+      <artifactId>jackson-dataformat-yaml</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro-protobuf</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.protobuf</groupId>
+          <artifactId>protobuf-java</artifactId>
+        </exclusion>
+      </exclusions>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- runtime dependencies -->
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-bigquery</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-bigquerystorage</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-io-common</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
     </dependency>
 
     <!-- test dependencies -->
@@ -177,6 +246,17 @@
       <artifactId>testcontainers</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-client-original</artifactId>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>
@@ -212,20 +292,43 @@
         </plugin>
         <!-- package -->
         <plugin>
-          <groupId>org.apache.nifi</groupId>
-          <artifactId>nifi-nar-maven-plugin</artifactId>
-          <version>${nifi.nar.plugin.version}</version>
-          <extensions>true</extensions>
-          <configuration>
-            <finalName>${project.artifactId}-${project.version}</finalName>
-          </configuration>
+          <!-- Shade all the dependencies to avoid conflicts -->
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-shade-plugin</artifactId>
           <executions>
             <execution>
-              <id>default-nar</id>
               <phase>package</phase>
               <goals>
-                <goal>nar</goal>
+                <goal>shade</goal>
               </goals>
+              <configuration>
+                <shadeSourcesContent>true</shadeSourcesContent>
+                <createDependencyReducedPom>true</createDependencyReducedPom>
+                <promoteTransitiveDependencies>false</promoteTransitiveDependencies>
+                <filters>
+                  <filter>
+                    <artifact>*:*</artifact>
+                    <excludes>
+                      <exclude>META-INF/*.SF</exclude>
+                      <exclude>META-INF/*.DSA</exclude>
+                      <exclude>META-INF/*.RSA</exclude>
+                    </excludes>
+                  </filter>
+                </filters>
+                <relocations>
+                  <relocation>
+                    <shadedPattern>org.apache.pulsar.ecosystem.io.bigquery.shade.com.google</shadedPattern>
+                    <pattern>com.google</pattern>
+                  </relocation>
+                  <relocation>
+                    <shadedPattern>org.apache.pulsar.ecosystem.io.bigquery.shade.io.grpc</shadedPattern>
+                    <pattern>io.grpc</pattern>
+                  </relocation>
+                </relocations>
+                <transformers>
+                  <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                </transformers>
+              </configuration>
             </execution>
           </executions>
         </plugin>
@@ -239,6 +342,10 @@
             <excludes>
               <exclude>LICENSE</exclude>
               <exclude>NOTICE</exclude>
+              <exclude>.github/**</exclude>
+              <exclude>**/*.template</exclude>
+              <exclude>.ci/**</exclude>
+              <exclude>.java-version</exclude>
             </excludes>
             <mapping>
               <proto>JAVADOC_STYLE</proto>
@@ -318,8 +425,8 @@
 
       <!-- package -->
       <plugin>
-        <groupId>org.apache.nifi</groupId>
-        <artifactId>nifi-nar-maven-plugin</artifactId>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
       </plugin>
 
       <!-- license -->

@@ -1,0 +1,85 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+configs:
+  # projectId is BigQuery project id.
+  #
+  # This field is *required*.
+  #
+  projectId: "your-project-id"
+
+  # datasetName is BigQuery dataset name.
+  #
+  # This field is *required*.
+  #
+  datasetName: "your-dataset-name"
+
+  # tableName is BigQuery table name.
+  #
+  # This field is *required*.
+  #
+  tableName: "your-table-name"
+
+  # Create a partitioned table when the table is automatically created.
+  # It will use __event_time__ the partition key.
+  #
+  # This field is optional.
+  #
+  partitionedTables: ""
+
+  # clusteredTableIntervalDay is number of days between partitioning of the partitioned table
+  #
+  # This field is optional.
+  #
+  partitionedTableIntervalDay: 7
+
+  # Create a clusteredTables table when the table is automatically created.
+  # It will use __message_id__ the partition key.
+  #
+  # This field is optional.
+  #
+  clusteredTables: ""
+
+  # Automatically create table when table does not exist
+  #
+  # This field is optional.
+  #
+  autoCreateTable: ""
+
+  # Automatically update table schema when table schema is incompatible.
+  #
+  # This field is optional.
+  #
+  autoUpdateTable: ""
+
+  # Create system fields when the table is automatically created, separate multiple fields with commas.
+  # The supported system fields are: __schema_version__ , __partition__ , __event_time__ ,
+  # __publish_time__ , __message_id__ , __sequence_id__ , __producer_name__.
+  #
+  # This field is optional.
+  #
+  defaultSystemField: ""
+
+  # Authentication key, use the environment variable to get the key when key is empty.
+  # Key acquisition reference:
+  # https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries#before-you-begin.
+  #
+  # This field is optional.
+  #
+  credentialJsonString: ""
