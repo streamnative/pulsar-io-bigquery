@@ -37,10 +37,9 @@ import org.apache.pulsar.functions.api.Record;
 public class PrimitiveSchemaConvert extends AbstractSchemaConvert {
 
     private static final Map<SchemaType, StandardSQLTypeName> PRIMITIVE_TYPE_MAP;
-    private static final PrimitiveLogicalFieldConvert logicalFieldConvert;
+    private final PrimitiveLogicalFieldConvert logicalFieldConvert;
 
     static {
-        logicalFieldConvert = PrimitiveLogicalFieldConvert.getInstance();
         PRIMITIVE_TYPE_MAP = new HashMap<>();
         PRIMITIVE_TYPE_MAP.put(SchemaType.STRING, StandardSQLTypeName.STRING);
         PRIMITIVE_TYPE_MAP.put(SchemaType.BOOLEAN, StandardSQLTypeName.BOOL);
@@ -52,13 +51,9 @@ public class PrimitiveSchemaConvert extends AbstractSchemaConvert {
         PRIMITIVE_TYPE_MAP.put(SchemaType.DOUBLE, StandardSQLTypeName.FLOAT64);
         PRIMITIVE_TYPE_MAP.put(SchemaType.BYTES, StandardSQLTypeName.BYTES);
     }
-
     public PrimitiveSchemaConvert(Set<String> systemFieldNames) {
         super(systemFieldNames);
-    }
-
-    public static boolean isPrimitiveSchema(SchemaType schemaType) {
-        return PRIMITIVE_TYPE_MAP.containsKey(schemaType) || logicalFieldConvert.isLogicType(schemaType);
+        logicalFieldConvert = new PrimitiveLogicalFieldConvert();
     }
 
     @Override

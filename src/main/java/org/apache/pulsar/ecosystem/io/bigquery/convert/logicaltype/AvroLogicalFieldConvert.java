@@ -38,9 +38,9 @@ import org.apache.pulsar.ecosystem.io.bigquery.utils.TimeUtils;
  */
 public class AvroLogicalFieldConvert implements LogicalFieldConvert<LogicalType> {
 
-    private final Map<Class<? extends LogicalType>, TableFieldSchema.Type> logicalFields;
+    private static final Map<Class<? extends LogicalType>, TableFieldSchema.Type> logicalFields;
 
-    public AvroLogicalFieldConvert() {
+    static {
         logicalFields = new HashMap<>();
         logicalFields.put(LogicalTypes.Date.class, TableFieldSchema.Type.DATE);
         // TODO support NUMERIC and BIGNUMRIC

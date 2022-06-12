@@ -44,7 +44,7 @@ public class SchemaConvertHandler implements SchemaConvert {
     public Schema convertSchema(Record<GenericObject> records) {
         SchemaType type = records.getSchema().getSchemaInfo().getType();
 
-        if (PrimitiveSchemaConvert.isPrimitiveSchema(type)) {
+        if (type.isPrimitive()) {
             return primitiveSchemaConvert.convertSchema(records);
         }
 

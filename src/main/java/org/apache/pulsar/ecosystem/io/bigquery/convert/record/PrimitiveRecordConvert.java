@@ -39,7 +39,7 @@ public class PrimitiveRecordConvert extends AbstractRecordConvert {
     private final PrimitiveLogicalFieldConvert primitiveLogicalFieldConvert;
 
     public PrimitiveRecordConvert() {
-        this.primitiveLogicalFieldConvert = PrimitiveLogicalFieldConvert.getInstance();
+        this.primitiveLogicalFieldConvert = new PrimitiveLogicalFieldConvert();
     }
 
     @Override

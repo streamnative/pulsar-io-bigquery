@@ -38,22 +38,10 @@ import org.apache.pulsar.ecosystem.io.bigquery.utils.TimeUtils;
  */
 public class PrimitiveLogicalFieldConvert implements LogicalFieldConvert<SchemaType>{
 
-    public static void main(String[] args) {
-        Time time = new Time(System.currentTimeMillis());
-        System.out.println(time.toLocalTime());
-        System.out.println(time.getTime());
-    }
+    private static final Map<SchemaType, StandardSQLTypeName> logicalFields;
 
-    private final Map<SchemaType, StandardSQLTypeName> logicalFields;
-
-    private static final PrimitiveLogicalFieldConvert INSTANCE = new PrimitiveLogicalFieldConvert();
-
-    public static PrimitiveLogicalFieldConvert getInstance() {
-        return INSTANCE;
-    }
-
-    private PrimitiveLogicalFieldConvert() {
-        this.logicalFields = new HashMap<>();
+    static {
+        logicalFields = new HashMap<>();
         logicalFields.put(SchemaType.DATE, StandardSQLTypeName.TIMESTAMP);
         logicalFields.put(SchemaType.TIMESTAMP, StandardSQLTypeName.TIMESTAMP);
         logicalFields.put(SchemaType.TIME, StandardSQLTypeName.TIMESTAMP);
