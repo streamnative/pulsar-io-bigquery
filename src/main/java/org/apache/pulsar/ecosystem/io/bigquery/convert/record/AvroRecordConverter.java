@@ -31,10 +31,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.util.Utf8;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.DefaultSystemFieldConvert;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.logicaltype.AvroLogicalFieldConvert;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.RecordConvertException;
+import org.apache.pulsar.functions.api.Record;
 
 /**
  * avro record converter.
@@ -48,8 +50,14 @@ public class AvroRecordConverter extends AbstractRecordConvert {
         logicalFieldConvert = new AvroLogicalFieldConvert();
     }
 
-
     @Override
+    protected DynamicMessage.Builder convertUserField(DynamicMessage.Builder protoMsg, Record<GenericObject> record,
+                                                      Descriptors.Descriptor protoDescriptor,
+                                                      List<TableFieldSchema> tableFieldSchema)
+                                                                                      throws RecordConvertException {
+        return convertUserField(protoMsg, record.getValue().getNativeObject(), protoDescriptor, tableFieldSchema);
+    }
+
     protected DynamicMessage.Builder convertUserField(DynamicMessage.Builder protoMsg, Object nativeRecord,
                                       Descriptors.Descriptor protoDescriptor,
                                       List<TableFieldSchema> tableFieldSchema) throws RecordConvertException {

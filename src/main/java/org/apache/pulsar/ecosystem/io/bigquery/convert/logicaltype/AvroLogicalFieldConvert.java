@@ -90,7 +90,6 @@ public class AvroLogicalFieldConvert implements LogicalFieldConvert<LogicalType>
                                 (Long) pulsarFieldValue / 1000));
                     }
                 }
-
                 break;
             case TIME:
                 if (pulsarFieldValue instanceof Long) {
@@ -100,6 +99,7 @@ public class AvroLogicalFieldConvert implements LogicalFieldConvert<LogicalType>
                 }
                 break;
             case TIMESTAMP:
+                // bigquery receive micros timestamps
                 if (pulsarFieldValue instanceof Long) {
                     if (pulsarFieldType instanceof LogicalTypes.TimestampMillis) {
                         return (Long) pulsarFieldValue * 1000;

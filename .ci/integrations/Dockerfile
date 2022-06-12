@@ -1,6 +1,6 @@
 FROM apachepulsar/pulsar:2.10.0
 
-COPY .ci/integrations/test-pulsar-io-bigquery.yaml /test-pulsar-io-bigquery/
+COPY .ci/integrations/pulsar-io-bigquery-*.yaml /test-pulsar-io-bigquery/
 
 COPY .ci/integrations/bigquery-key.json /test-pulsar-io-bigquery/bigquery-key.json
 

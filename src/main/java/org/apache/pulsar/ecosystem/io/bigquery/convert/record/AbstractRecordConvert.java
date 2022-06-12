@@ -39,19 +39,20 @@ public abstract class AbstractRecordConvert implements RecordConverter {
     @Override
     public ProtoRows convertRecord(Record<GenericObject> record, Descriptors.Descriptor protoSchema,
                                    List<TableFieldSchema> tableFieldSchema) throws RecordConvertException {
-        GenericObject genericObject = record.getValue();
         ProtoRows.Builder rowsBuilder = ProtoRows.newBuilder();
         DynamicMessage.Builder protoMsg = DynamicMessage.newBuilder(protoSchema);
         convertSystemField(protoMsg, record, protoSchema, tableFieldSchema);
-        convertUserField(protoMsg, genericObject.getNativeObject(), protoSchema, tableFieldSchema);
+        convertUserField(protoMsg, record, protoSchema, tableFieldSchema);
         DynamicMessage dynamicMessage = buildMessage(protoMsg);
         rowsBuilder.addSerializedRows(dynamicMessage.toByteString());
         return rowsBuilder.build();
     }
 
-    abstract DynamicMessage.Builder convertUserField(DynamicMessage.Builder protoMsg, Object nativeRecord,
-                                               Descriptors.Descriptor protoDescriptor,
-                                               List<TableFieldSchema> tableFieldSchema) throws RecordConvertException;
+    protected abstract DynamicMessage.Builder convertUserField(DynamicMessage.Builder protoMsg,
+                                                               Record<GenericObject> record,
+                                                               Descriptors.Descriptor protoDescriptor,
+                                                               List<TableFieldSchema> tableFieldSchema)
+            throws RecordConvertException;
 
 
     private void convertSystemField(DynamicMessage.Builder protoMsg, Record<GenericObject> record,

@@ -32,6 +32,8 @@ public final class DefaultSystemFieldConvert {
 
     public static final String MAP_KEY_NAME = "key";
     public static final String MAP_VALUE_NAME = "value";
+
+    public static final String PRIMITIVE_VALUE_NAME = "__value";
     private static final Map<String, StandardSQLTypeName> defaultFieldTypeMapping = new HashMap<>();
 
     static {
