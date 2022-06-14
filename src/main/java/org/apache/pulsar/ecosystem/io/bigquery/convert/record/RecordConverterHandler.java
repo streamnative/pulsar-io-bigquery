@@ -36,9 +36,11 @@ import org.apache.pulsar.functions.api.Record;
 public class RecordConverterHandler implements RecordConverter {
 
     private Map<SchemaType, RecordConverter> recordConverts = new HashMap<>();
+    private PrimitiveRecordConvert primitiveRecordConvert;
 
     public RecordConverterHandler() {
         recordConverts.put(SchemaType.AVRO, new AvroRecordConverter());
+        primitiveRecordConvert = new PrimitiveRecordConvert();
     }
 
     @Override
@@ -46,6 +48,9 @@ public class RecordConverterHandler implements RecordConverter {
                                    Descriptors.Descriptor protoSchema,
                                    List<TableFieldSchema> tableFieldSchema) throws RecordConvertException {
         SchemaType type = record.getSchema().getSchemaInfo().getType();
+        if (type.isPrimitive()) {
+            return primitiveRecordConvert.convertRecord(record, protoSchema, tableFieldSchema);
+        }
         RecordConverter recordConverter = recordConverts.get(type);
         if (recordConverter == null) {
             throw new BigQueryConnectorRuntimeException("Not support schema type: " + type);

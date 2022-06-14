@@ -45,7 +45,7 @@ public class AvroSchemaConvert extends AbstractSchemaConvert {
     private static final Map<org.apache.avro.Schema.Type, StandardSQLTypeName>
             PRIMITIVE_TYPE_MAP = new HashMap<>();
 
-    private AvroLogicalFieldConvert logicalFieldConvert;
+    private final AvroLogicalFieldConvert logicalFieldConvert;
 
     static {
         PRIMITIVE_TYPE_MAP.put(org.apache.avro.Schema.Type.ENUM, StandardSQLTypeName.STRING);

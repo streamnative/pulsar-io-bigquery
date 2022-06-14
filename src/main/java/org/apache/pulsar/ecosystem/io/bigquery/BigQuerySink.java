@@ -116,11 +116,10 @@ public class BigQuerySink implements Sink<GenericObject> {
         try {
             tryUpdateBigqueryResources();
             streamWriter.append(protoRows).get();
-            return;
         } catch (Exception e) {
             // TODO Refinement exceptions, other exceptions, throw exceptions directly
             throw new BigQueryConnectorRuntimeException(
-                    "Append record failed, after trying to update the schema it still fails");
+                    "Append record failed, after trying to update the schema it still fails", e);
         }
 
     }

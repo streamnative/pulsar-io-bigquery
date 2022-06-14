@@ -15,7 +15,7 @@ configs:
   #
   # This field is *required*.
   #
-  tableName: "integration_table"
+  tableName: "avro_table"
 
   # Create a partitioned table when the table is automatically created.
   # It will use __event_time__ the partition key.

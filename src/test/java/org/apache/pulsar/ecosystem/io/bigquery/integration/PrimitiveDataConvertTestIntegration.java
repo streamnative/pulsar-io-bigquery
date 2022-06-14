@@ -26,69 +26,84 @@ import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableResult;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import lombok.AllArgsConstructor;
 import lombok.Cleanup;
+import lombok.Data;
+import lombok.ToString;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.ecosystem.io.bigquery.AvroRecordsUtils;
 import org.apache.pulsar.ecosystem.io.bigquery.BigQueryConfig;
+import org.junit.Assert;
 import org.junit.Test;
 
 /**
  * Integration test.
  */
-public class AvroDataConvertTestIntegration {
+public class PrimitiveDataConvertTestIntegration {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testFirst() throws IOException, InterruptedException {
-
-        // 0. clean bigquery data.
-        BigQueryConfig bigQueryConfig = new BigQueryConfig();
-        bigQueryConfig.setProjectId("affable-ray-226821");
-        bigQueryConfig.setDatasetName("integration");
-        bigQueryConfig.setTableName("avro_table");
-        BigQuery bigQuery = bigQueryConfig.createBigQuery();
-        bigQuery.delete(bigQueryConfig.getTableId());
-        Thread.sleep(5000);
-
-
-        // 1. send some message.
-        String pulsarTopic = "avro-bigquery-topic";
-        String pulsarProducerName = "test-bigquery-produce-name";
 
         @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl("pulsar://localhost:6650")
                 .build();
+        List<PrimitiveTestWrapper> allTypeField = new ArrayList<>();
+        allTypeField.add(new PrimitiveTestWrapper<String>(Schema.STRING, "str", "str"));
+        for (PrimitiveTestWrapper primitiveTestWrapper : allTypeField) {
+            testPrimitive("primitive_table",
+                    pulsarClient, primitiveTestWrapper);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void testPrimitive(String tableName, PulsarClient pulsarClient, PrimitiveTestWrapper primitiveWrapper)
+            throws IOException, InterruptedException {
+        // 0. clean bigquery data.
+        BigQueryConfig bigQueryConfig = new BigQueryConfig();
+        bigQueryConfig.setProjectId("affable-ray-226821");
+        bigQueryConfig.setDatasetName("integration");
+        bigQueryConfig.setTableName(tableName);
+        BigQuery bigQuery = bigQueryConfig.createBigQuery();
+        bigQuery.delete(bigQueryConfig.getTableId());
+        Thread.sleep(5000);
+
+        // 1. send some message.
+        String pulsarTopic = "primitive-bigquery-topic";
+        String pulsarProducerName = "test-bigquery-produce-name";
 
         @Cleanup
-        Producer<AvroRecordsUtils.Foo> pulsarProducer =
-                pulsarClient.newProducer(Schema.AVRO(AvroRecordsUtils.Foo.class))
+        Producer pulsarProducer =
+                pulsarClient.newProducer(primitiveWrapper.type)
                         .topic(pulsarTopic)
                         .producerName(pulsarProducerName)
                         .create();
 
         for (int i = 0; i < 10; i++) {
-            pulsarProducer.newMessage().value(AvroRecordsUtils.getFoo1()).send();
+            pulsarProducer.newMessage().value(primitiveWrapper.value).send();
         }
 
         // 3. query and assert
         Thread.sleep(20000);
-        TableResult tableResult = queryResult(bigQuery);
+        TableResult tableResult = queryResult(bigQuery, tableName);
         assertEquals(10, tableResult.getTotalRows());
         for (FieldValueList fieldValues : tableResult.iterateAll()) {
             assertEquals(pulsarProducerName, fieldValues.get("__producer_name__").getStringValue());
-            assertEquals("test col2", fieldValues.get("col1").getStringValue());
-            assertEquals("test col3", fieldValues.get("col3").getStringValue());
+            primitiveWrapper.assertEquals(fieldValues.get("__value").getValue());
         }
     }
 
-    public TableResult queryResult(BigQuery bigQuery) throws InterruptedException {
+    public TableResult queryResult(BigQuery bigQuery, String tableName) throws InterruptedException {
         QueryJobConfiguration queryConfig =
                 QueryJobConfiguration
-                        .newBuilder("SELECT * FROM affable-ray-226821.integration.avro_table")
+                        .newBuilder("SELECT * FROM affable-ray-226821.integration." + tableName)
                         // Use standard SQL syntax for queries.
                         // See: https://cloud.google.com/bigquery/sql-reference/
                         .setUseLegacySql(false)
@@ -113,5 +128,25 @@ public class AvroDataConvertTestIntegration {
         // Get the results.
         TableResult result = queryJob.getQueryResults();
         return result;
+    }
+
+    @Data
+    @ToString
+    @AllArgsConstructor
+    class PrimitiveTestWrapper<T> {
+        private Schema<T> type;
+        private Object value;
+        private Object assertValue;
+
+        private void assertEquals(Object recordValue) {
+            if (recordValue instanceof Double) {
+                Assert.assertEquals((double) recordValue, (double) assertValue, 0.001);
+            } else if (recordValue instanceof ByteString) {
+                ByteString byteStr = (ByteString) recordValue;
+                Assert.assertArrayEquals(byteStr.toByteArray(), (byte[]) assertValue);
+            } else {
+                Assert.assertEquals(recordValue, assertValue);
+            }
+        }
     }
 }

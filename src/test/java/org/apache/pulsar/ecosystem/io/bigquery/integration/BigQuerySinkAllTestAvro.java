@@ -26,12 +26,12 @@ import org.apache.pulsar.ecosystem.io.bigquery.BigQuerySink;
 import org.apache.pulsar.functions.api.Record;
 
 /**
- * Big query all test.
+ * Big query all test. Just use the local debug test.
  */
-public class BigQuerySinkAllTestNew {
+public class BigQuerySinkAllTestAvro {
 
     public static void main(String[] args) throws Exception {
-        BigQuerySinkAllTestNew bigQuerySinkAllTestNew = new BigQuerySinkAllTestNew();
+        BigQuerySinkAllTestAvro bigQuerySinkAllTestNew = new BigQuerySinkAllTestAvro();
         bigQuerySinkAllTestNew.testBase();
     }
 

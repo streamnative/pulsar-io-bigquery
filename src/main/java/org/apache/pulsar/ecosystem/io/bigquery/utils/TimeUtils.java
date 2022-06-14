@@ -21,6 +21,7 @@ package org.apache.pulsar.ecosystem.io.bigquery.utils;
 import java.util.Calendar;
 import java.util.TimeZone;
 import org.threeten.bp.LocalDateTime;
+import org.threeten.bp.LocalTime;
 
 /**
  * Time utils.
@@ -45,5 +46,15 @@ public class TimeUtils {
                 calendar.get(Calendar.MINUTE), calendar.get(Calendar.SECOND),
                 calendar.get(Calendar.MILLISECOND) * 1000000);
         return localDateTime;
+    }
+
+    public static LocalDateTime convertLocalDateTime(java.time.LocalDateTime localDateTime) {
+        return LocalDateTime.of(localDateTime.getYear(), localDateTime.getMonth().getValue(),
+                localDateTime.getDayOfMonth(),
+                localDateTime.getHour(), localDateTime.getMinute(), localDateTime.getSecond(), localDateTime.getNano());
+    }
+
+    public static LocalTime convertLocalTime(java.time.LocalTime localTime) {
+        return LocalTime.of(localTime.getHour(), localTime.getMinute(), localTime.getSecond(), localTime.getNano());
     }
 }
