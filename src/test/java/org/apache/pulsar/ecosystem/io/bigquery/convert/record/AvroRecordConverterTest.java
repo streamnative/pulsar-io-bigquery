@@ -26,7 +26,6 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import com.google.cloud.bigquery.storage.v1.BigDecimalByteStringEncoder;
-import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors;
@@ -76,10 +75,8 @@ public class AvroRecordConverterTest {
         Descriptors.Descriptor firstDescriptor = schemaManager.getDescriptor();
 
         // first convert success.
-        ProtoRows protoRows =
+        DynamicMessage dynamicMessage =
                 avroRecordConverter.convertRecord(recordRecordFirst, firstDescriptor, firstTableSchema.getFieldsList());
-        ByteString serializedRows = protoRows.getSerializedRows(0);
-        DynamicMessage dynamicMessage = DynamicMessage.parseFrom(schemaManager.getDescriptor(), serializedRows);
         assertEquals(dynamicMessage.getAllFields().size(), 6);
         assertConvertResult(dynamicMessage);
 
@@ -105,7 +102,7 @@ public class AvroRecordConverterTest {
                     Assert.assertEquals(1653530376803000L, value);
                     break;
                 case "col1":
-                    Assert.assertEquals("test col2", value);
+                    Assert.assertEquals("test col1", value);
                     break;
                 case "col3":
                     Assert.assertEquals("test col3", value);

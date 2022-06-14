@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.ecosystem.io.bigquery.convert.record;
 
-import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
 import com.google.protobuf.Descriptors;
+import com.google.protobuf.DynamicMessage;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,9 +44,9 @@ public class RecordConverterHandler implements RecordConverter {
     }
 
     @Override
-    public ProtoRows convertRecord(Record<GenericObject> record,
-                                   Descriptors.Descriptor protoSchema,
-                                   List<TableFieldSchema> tableFieldSchema) throws RecordConvertException {
+    public DynamicMessage convertRecord(Record<GenericObject> record,
+                                        Descriptors.Descriptor protoSchema,
+                                        List<TableFieldSchema> tableFieldSchema) throws RecordConvertException {
         SchemaType type = record.getSchema().getSchemaInfo().getType();
         if (type.isPrimitive()) {
             return primitiveRecordConvert.convertRecord(record, protoSchema, tableFieldSchema);

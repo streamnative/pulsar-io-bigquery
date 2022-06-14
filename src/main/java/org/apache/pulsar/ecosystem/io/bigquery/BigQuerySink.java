@@ -18,15 +18,18 @@
  */
 package org.apache.pulsar.ecosystem.io.bigquery;
 
-import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
-import com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest;
-import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamRequest;
-import com.google.cloud.bigquery.storage.v1.ProtoRows;
-import com.google.cloud.bigquery.storage.v1.StreamWriter;
-import com.google.cloud.bigquery.storage.v1.TableName;
-import com.google.cloud.bigquery.storage.v1.WriteStream;
+import com.google.protobuf.DynamicMessage;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.record.RecordConverter;
@@ -43,12 +46,8 @@ import org.apache.pulsar.io.core.SinkContext;
 @Slf4j
 public class BigQuerySink implements Sink<GenericObject> {
 
-    // bigquery
-    private BigQueryWriteClient client;
-    private WriteStream writeStream;
-    private StreamWriter streamWriter;
-    private TableName tableName;
-
+    // data writer
+    private DataWriterBatchWrapper dataWriterBatch;
     // pulsar
     private RecordConverter recordConverter;
     private BigQueryConfig bigQueryConfig;
@@ -57,6 +56,12 @@ public class BigQuerySink implements Sink<GenericObject> {
     // is init bq resources
     private boolean init;
 
+    // All operations inside bigquery are handled by this separate thread
+    private ScheduledExecutorService scheduledExecutorService;
+    private Executor callBackThread;
+
+    private volatile Exception error;
+
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         this.bigQueryConfig = BigQueryConfig.load(config, sinkContext);
@@ -64,67 +69,72 @@ public class BigQuerySink implements Sink<GenericObject> {
         Objects.requireNonNull(bigQueryConfig.getDatasetName(), "BigQuery dataset id is not set");
         Objects.requireNonNull(bigQueryConfig.getTableName(), "BigQuery table name id is not set");
 
-        this.client = bigQueryConfig.createBigQueryWriteClient();
-        this.tableName = TableName.of(bigQueryConfig.getProjectId(),
-                bigQueryConfig.getDatasetName(), bigQueryConfig.getTableName());
         this.recordConverter = new RecordConverterHandler();
         this.schemaManager = new SchemaManager(bigQueryConfig);
+        this.scheduledExecutorService =
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("bigquery-sink"));
+        this.callBackThread = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("bigquery-sink-callback"));
+        DataWriter dataWriter;
+        if (bigQueryConfig.getVisibleModel() == BigQueryConfig.VisibleModel.Committed) {
+            dataWriter = new DataWriterCommitted(bigQueryConfig.createBigQueryWriteClient(),
+                    bigQueryConfig.getTableName());
+        } else {
+            dataWriter = new DataWriterPending(bigQueryConfig.createBigQueryWriteClient(),
+                    bigQueryConfig.getTableName());
+        }
+        this.dataWriterBatch = new DataWriterBatchWrapper(dataWriter, schemaManager, callBackThread,
+                10, 3000);
     }
 
     @Override
     public void write(Record<GenericObject> record) throws Exception {
-
-        // 0. Try to create table and init bigquery resources
-        if (!init) {
-            schemaManager.initTable(record);
-            tryUpdateBigqueryResources();
-            init = true;
+        // An unrecoverable exception was encountered during processing
+        if (error != null) {
+            throw error;
         }
-
-        // 2. Write record.
-        writeRecord(record);
-
-        // 3. Ack message.
-        if (log.isDebugEnabled()) {
-            log.debug("Append success, ack this message <{}>", record.getMessage().get().getMessageId());
-        }
-        record.ack();
+        useInnerThreadHandle(record).get();
     }
 
-    @Override
-    public void close() {
-        closeStream();
-        client.close();
+    /**
+     * Use internal threads to process messages, and batch timers are one thread to avoid thread safety.
+     *
+     * @param record
+     * @return
+     */
+    private CompletableFuture<Void> useInnerThreadHandle(Record<GenericObject> record) {
+        return CompletableFuture.runAsync(() -> {
+            // 0. Try to create table and init bigquery resources
+            if (!init) {
+                schemaManager.initTable(record);
+                try {
+                    dataWriterBatch.updateResources(schemaManager.getProtoSchema());
+                } catch (IOException e) {
+                    throw new BigQueryConnectorRuntimeException(e);
+                }
+                this.scheduledExecutorService.scheduleAtFixedRate(() -> writeData(null),
+                        5, 5, TimeUnit.SECONDS);
+                init = true;
+            }
+
+            // 1. convert record and try update schema.
+            DynamicMessage msg = convertRecord(record);
+
+            // 2. append msg.
+            writeData(Arrays.asList(new DataWriter.DataWriterRequest(msg, record)));
+
+        }, scheduledExecutorService);
     }
 
-    private void writeRecord(Record<GenericObject> record) {
-
-        // convert record and try update schema.
-        ProtoRows protoRows = convertRecord(record);
-
-        // Try first append rows.
+    private void writeData(List<DataWriter.DataWriterRequest> dataWriterRequests) {
         try {
-            streamWriter.append(protoRows).get();
-            return;
+            dataWriterBatch.append(dataWriterRequests);
         } catch (Exception e) {
-            // TODO Refinement exceptions, other exceptions, throw exceptions directly
-            log.warn("Append record field, try update schema: <{}>", e.getMessage());
-            schemaManager.updateSchema(record);
+            this.error = e;
         }
-
-        // Bigquery resource update is delayed, try a few more times.
-        try {
-            tryUpdateBigqueryResources();
-            streamWriter.append(protoRows).get();
-        } catch (Exception e) {
-            // TODO Refinement exceptions, other exceptions, throw exceptions directly
-            throw new BigQueryConnectorRuntimeException(
-                    "Append record failed, after trying to update the schema it still fails", e);
-        }
-
     }
 
-    private ProtoRows convertRecord(Record<GenericObject> record) {
+    private DynamicMessage convertRecord(Record<GenericObject> record) {
         try {
             return recordConverter.convertRecord(record, schemaManager.getDescriptor(),
                     schemaManager.getTableSchema().getFieldsList());
@@ -136,7 +146,7 @@ public class BigQuerySink implements Sink<GenericObject> {
 
         // Bigquery resource update is delayed, try a few more times.
         try {
-            tryUpdateBigqueryResources();
+            dataWriterBatch.updateResources(schemaManager.getProtoSchema());
             return recordConverter.convertRecord(record, schemaManager.getDescriptor(),
                     schemaManager.getTableSchema().getFieldsList());
         } catch (Exception e) {
@@ -145,51 +155,8 @@ public class BigQuerySink implements Sink<GenericObject> {
         }
     }
 
-    private void tryUpdateBigqueryResources() throws Exception {
-        int tryCount = 0;
-        while (true) {
-            Thread.sleep(5000);
-            try {
-                updateBigQueryResources();
-                return;
-            } catch (Exception e) {
-                if (tryCount == 5) {
-                    throw new BigQueryConnectorRuntimeException(
-                            "Update big query resources failed, it doesn't work even after 5 tries, please check", e);
-                } else {
-                    tryCount++;
-                    log.warn("Update big query resources count <{}> failed, Retry after 5 seconds <{}>",
-                            tryCount, e.getMessage());
-                }
-            }
-        }
-    }
-
-    private void closeStream() {
-        if (streamWriter != null) {
-            streamWriter.close();
-        }
-        if (writeStream != null) {
-            // Finalize the stream after use.
-            FinalizeWriteStreamRequest finalizeWriteStreamRequest =
-                    FinalizeWriteStreamRequest.newBuilder().setName(writeStream.getName()).build();
-            client.finalizeWriteStream(finalizeWriteStreamRequest);
-        }
-    }
-
-    private void updateBigQueryResources() throws Exception {
-        closeStream();
-        CreateWriteStreamRequest createWriteStreamRequest =
-                CreateWriteStreamRequest.newBuilder()
-                        .setParent(this.tableName.toString())
-                        .setWriteStream(WriteStream.newBuilder().setType(WriteStream.Type.COMMITTED).build())
-                        .build();
-        // if table not found, client will throw exception
-        writeStream = client.createWriteStream(createWriteStreamRequest);
-        streamWriter = StreamWriter
-                .newBuilder(writeStream.getName(), client)
-                .setWriterSchema(schemaManager.getProtoSchema())
-                .build();
-        log.info("Update resources success, start new write stream: {}", writeStream.getName());
+    @Override
+    public void close() throws Exception {
+        dataWriterBatch.close();
     }
 }

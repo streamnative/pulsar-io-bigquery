@@ -49,16 +49,23 @@ public class BigQuerySinkAllTestAvro {
         sinkConfig.put("partitionedTables", true);
         sinkConfig.put("partitionedTableIntervalDay", 10);
         sinkConfig.put("defaultSystemField", "__event_time__");
+        sinkConfig.put("visibleModel", "Pending");
         bigQuerySink.open(sinkConfig, null);
 
         Record<GenericObject> genericRecordRecordFirst = AvroRecordsUtils.getGenericRecordRecordFirst();
         bigQuerySink.write(genericRecordRecordFirst);
 
-
         Thread.sleep(1000);
-        Record<GenericObject> genericRecordRecordSecond = AvroRecordsUtils.getGenericRecordRecordSecond();
-        bigQuerySink.write(genericRecordRecordSecond);
+
+        for (int i = 0; i < 10; i++) {
+            Record<GenericObject> genericRecordRecordSecond = AvroRecordsUtils.getGenericRecordRecordSecond();
+            bigQuerySink.write(genericRecordRecordSecond);
+        }
+
+        // write async
+        Thread.sleep(50000);
         bigQuerySink.close();
+        System.exit(0);
     }
 
 

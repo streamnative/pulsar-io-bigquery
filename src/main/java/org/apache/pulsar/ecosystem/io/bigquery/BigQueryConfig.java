@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteSettings;
+import com.google.cloud.bigquery.storage.v1.TableName;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
@@ -62,6 +63,24 @@ public class BigQueryConfig implements Serializable {
             defaultValue = "",
             help = "tableName is BigQuery table name")
     private String tableName;
+
+    @FieldDoc(required = false,
+            defaultValue = "Committed",
+            help = "Optional Committed or Pending."
+                    + "When equal to Pending, it is recommended to increase batchMaxSize and batchMaxTime."
+                    + "The mode controls when data written to the stream becomes visible in BigQuery for reading."
+                    + "Refer: https://cloud.google.com/bigquery/docs/write-api#application-created_streams")
+    private VisibleModel visibleModel;
+
+    @FieldDoc(required = false,
+            defaultValue = "10",
+            help = "Maximum number of batch messages")
+    private int batchMaxSize;
+
+    @FieldDoc(required = false,
+            defaultValue = "5000",
+            help = "Batch max wait time: milliseconds")
+    private int batchMaxTime;
 
     @FieldDoc(required = false,
             defaultValue = "false",
@@ -112,6 +131,10 @@ public class BigQueryConfig implements Serializable {
         return TableId.of(projectId, datasetName, tableName);
     }
 
+    public TableName getTableName() {
+        return TableName.of(projectId, datasetName, tableName);
+    }
+
     public Set<String> getDefaultSystemField() {
         Set<String> fields = Optional.ofNullable(defaultSystemField)
                 .map(__ -> Arrays.stream(defaultSystemField.split(","))
@@ -160,5 +183,15 @@ public class BigQueryConfig implements Serializable {
 
     public static BigQueryConfig load(Map<String, Object> map, SinkContext sinkContext) {
         return IOConfigUtils.loadWithSecrets(map, BigQueryConfig.class, sinkContext);
+    }
+
+
+    /**
+     * The mode controls when data written to the stream becomes visible in BigQuery for reading.
+     * Refer: https://cloud.google.com/bigquery/docs/write-api#application-created_streams
+     */
+    enum VisibleModel {
+        Committed,
+        Pending
     }
 }

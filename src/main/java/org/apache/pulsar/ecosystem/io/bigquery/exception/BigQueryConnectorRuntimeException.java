@@ -31,6 +31,10 @@ public class BigQueryConnectorRuntimeException extends RuntimeException {
         super(message);
     }
 
+    public BigQueryConnectorRuntimeException(Throwable cause) {
+        super(cause);
+    }
+
     public BigQueryConnectorRuntimeException(String message, Throwable cause) {
         super(message, cause);
     }

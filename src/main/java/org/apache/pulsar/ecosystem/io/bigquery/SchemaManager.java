@@ -36,10 +36,12 @@ import com.google.cloud.bigquery.storage.v1.BQTableSchemaToProtoDescriptor;
 import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.cloud.bigquery.storage.v1.ProtoSchemaConverter;
 import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
+import com.google.cloud.bigquery.storage.v1.TableName;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.Descriptors;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -47,6 +49,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -64,6 +67,7 @@ public class SchemaManager {
 
     private final BigQuery bigquery;
     private final TableId tableId;
+    private final TableName tableName;
     @Getter
     private Schema schema;
     @Getter
@@ -86,6 +90,7 @@ public class SchemaManager {
     public SchemaManager(BigQueryConfig bigQueryConfig) throws IOException {
         this.bigquery = bigQueryConfig.createBigQuery();
         this.tableId = bigQueryConfig.getTableId();
+        this.tableName = bigQueryConfig.getTableName();
         this.defaultSystemField = bigQueryConfig.getDefaultSystemField();
         this.autoCreateTable = bigQueryConfig.isAutoCreateTable();
         this.autoUpdateTable = bigQueryConfig.isAutoUpdateTable();
@@ -101,12 +106,12 @@ public class SchemaManager {
      *
      * @param records
      */
-    public void initTable(Record<GenericObject> records) {
+    public Schema initTable(Record<GenericObject> records) {
         try {
             Schema schema = fetchTableSchema();
             updateCacheSchema(schema);
             log.info("Table is exist <{}>, ignore create request.", tableId);
-            return;
+            return schema;
         } catch (BigQueryException e) {
             if (e.getCode() == HTTP_NOT_FOUND) {
                 if (autoCreateTable) {
@@ -121,26 +126,31 @@ public class SchemaManager {
         }
 
        Schema schema = schemaConvert.convertSchema(records);
-       StandardTableDefinition.Builder tableDefinition = StandardTableDefinition.newBuilder()
-               .setSchema(schema);
-       if (partitionedTables) {
-           TimePartitioning partitioning =
-                   TimePartitioning.newBuilder(TimePartitioning.Type.DAY)
-                           .setField("__event_time__") //  name of column to use for partitioning
-                           .setExpirationMs(TimeUnit.MILLISECONDS.
-                                   convert(partitionedTableIntervalDay, TimeUnit.DAYS))
-                           .build();
-           tableDefinition.setTimePartitioning(partitioning);
-       }
-       if (clusteredTables) {
-           Clustering clustering =
-                   Clustering.newBuilder().setFields(Collections.singletonList("__message_id__")).build();
-           tableDefinition.setClustering(clustering);
-       }
-       TableInfo tableInfo = TableInfo.newBuilder(tableId, tableDefinition.build()).build();
+        TableInfo tableInfo = TableInfo.newBuilder(tableId, getTableInfo(schema)).build();
        bigquery.create(tableInfo);
        updateCacheSchema(schema);
        log.info("create table success <{}>", tableId);
+        return schema;
+    }
+
+    private StandardTableDefinition getTableInfo(Schema schema) {
+        StandardTableDefinition.Builder tableDefinition = StandardTableDefinition.newBuilder()
+                .setSchema(schema);
+        if (partitionedTables) {
+            TimePartitioning partitioning =
+                    TimePartitioning.newBuilder(TimePartitioning.Type.DAY)
+                            .setField("__event_time__") //  name of column to use for partitioning
+                            .setExpirationMs(TimeUnit.MILLISECONDS.
+                                    convert(partitionedTableIntervalDay, TimeUnit.DAYS))
+                            .build();
+            tableDefinition.setTimePartitioning(partitioning);
+        }
+        if (clusteredTables) {
+            Clustering clustering =
+                    Clustering.newBuilder().setFields(Collections.singletonList("__message_id__")).build();
+            tableDefinition.setClustering(clustering);
+        }
+        return tableDefinition.build();
     }
 
     /**
@@ -151,25 +161,26 @@ public class SchemaManager {
      *
      * @param records
      */
-    public void updateSchema(Record<GenericObject> records) {
+    public void updateSchema(List<Record<GenericObject>> records) {
         if (!autoUpdateTable) {
             throw new BigQueryConnectorRuntimeException("Table cannot be update,"
                     + " autoUpdateTable == false.");
         }
-        Schema bigQuerySchema;
-        try {
-            bigQuerySchema = fetchTableSchema();
-        } catch (BigQueryException e) {
-            log.warn("Get schema failed, try create table <{}>", tableId);
-            initTable(records);
-            return;
+        Schema bigQuerySchema = initTable(records.get(0));
+        List<Schema> schemas =
+                records.stream().map(record -> schemaConvert.convertSchema(record)).collect(Collectors.toList());
+        Schema mergeSchema = bigQuerySchema;
+        for (Schema toMergeSchema : schemas) {
+            mergeSchema = mergeSchema(toMergeSchema, mergeSchema);
         }
-        Schema pulsarSchema = schemaConvert.convertSchema(records);
-        Schema mergeSchema = mergeSchema(bigQuerySchema, pulsarSchema);
-        TableInfo tableInfo = Table.newBuilder(tableId, StandardTableDefinition.of(mergeSchema)).build();
+        TableInfo tableInfo = Table.newBuilder(tableId, getTableInfo(mergeSchema)).build();
         bigquery.update(tableInfo);
         updateCacheSchema(mergeSchema);
         log.info("update table success <{}>", tableInfo);
+    }
+
+    public void updateSchema(Record<GenericObject> record) {
+        updateSchema(Arrays.asList(record));
     }
 
     // ---------------------------- private method -------------------------------

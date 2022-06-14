@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.ecosystem.io.bigquery.convert.record;
 
-import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
@@ -37,15 +36,13 @@ import org.apache.pulsar.functions.api.Record;
 public abstract class AbstractRecordConvert implements RecordConverter {
 
     @Override
-    public ProtoRows convertRecord(Record<GenericObject> record, Descriptors.Descriptor protoSchema,
+    public DynamicMessage convertRecord(Record<GenericObject> record, Descriptors.Descriptor protoSchema,
                                    List<TableFieldSchema> tableFieldSchema) throws RecordConvertException {
-        ProtoRows.Builder rowsBuilder = ProtoRows.newBuilder();
         DynamicMessage.Builder protoMsg = DynamicMessage.newBuilder(protoSchema);
         convertSystemField(protoMsg, record, protoSchema, tableFieldSchema);
         convertUserField(protoMsg, record, protoSchema, tableFieldSchema);
         DynamicMessage dynamicMessage = buildMessage(protoMsg);
-        rowsBuilder.addSerializedRows(dynamicMessage.toByteString());
-        return rowsBuilder.build();
+        return dynamicMessage;
     }
 
     protected abstract DynamicMessage.Builder convertUserField(DynamicMessage.Builder protoMsg,
