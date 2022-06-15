@@ -101,6 +101,7 @@ public class DataWriterBatchWrapper {
         append.handleAsync((appendRowsResponse, throwable) -> {
             if (throwable != null) {
                 for (DataWriter.DataWriterRequest dataWriterRequest : dataWriterRequests) {
+                    // TODO Refinement exceptions, other exceptions, throw exceptions directly
                     dataWriterRequest.getRecord().fail();
                     log.warn("Append fail, fail this message <{}>",
                             dataWriterRequest.getRecord().getMessage().get().getMessageId(), throwable);
