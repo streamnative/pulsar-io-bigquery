@@ -80,7 +80,7 @@ public class AvroDataConvertTestIntegration {
         assertEquals(10, tableResult.getTotalRows());
         for (FieldValueList fieldValues : tableResult.iterateAll()) {
             assertEquals(pulsarProducerName, fieldValues.get("__producer_name__").getStringValue());
-            assertEquals("test col2", fieldValues.get("col1").getStringValue());
+            assertEquals("test col1", fieldValues.get("col1").getStringValue());
             assertEquals("test col3", fieldValues.get("col3").getStringValue());
         }
     }
