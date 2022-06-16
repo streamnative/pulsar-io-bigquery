@@ -74,7 +74,8 @@ public class BigQuerySink implements Sink<GenericObject> {
             dataWriter = new DataWriterPending(bigQueryConfig.createBigQueryWriteClient(),
                     bigQueryConfig.getTableName());
         } else {
-            throw new BQConnectorDirectFailException("Not support visible model: " + bigQueryConfig.getVisibleModel());
+            throw new BQConnectorDirectFailException("Not support visible model: " + bigQueryConfig.getVisibleModel()
+                    + ", support Committed or Pending");
         }
         this.dataWriterBatch = new DataWriterBatchWrapper(dataWriter, schemaManager,
                 bigQueryConfig.getBatchMaxSize(), bigQueryConfig.getBatchMaxTime(), 10);
