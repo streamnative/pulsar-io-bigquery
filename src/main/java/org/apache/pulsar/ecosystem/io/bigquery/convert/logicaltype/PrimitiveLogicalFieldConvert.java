@@ -30,7 +30,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
 import org.apache.pulsar.ecosystem.io.bigquery.utils.TimeUtils;
 
 /**
@@ -55,7 +55,7 @@ public class PrimitiveLogicalFieldConvert implements LogicalFieldConvert<SchemaT
     public StandardSQLTypeName convertFieldType(SchemaType pulsarFieldType) {
         StandardSQLTypeName value = logicalFields.get(pulsarFieldType);
         if (value == null) {
-            throw new BigQueryConnectorRuntimeException(
+            throw new BQConnectorDirectFailException(
                     "Primitive schema not support logical type:" + pulsarFieldType);
         }
         return value;
@@ -101,7 +101,7 @@ public class PrimitiveLogicalFieldConvert implements LogicalFieldConvert<SchemaT
                 }
                 break;
         }
-        throw new BigQueryConnectorRuntimeException(
+        throw new BQConnectorDirectFailException(
                 String.format("Not support logical type: %s, value class is: %s", pulsarFieldType,
                         pulsarFieldValue.getClass()));
 

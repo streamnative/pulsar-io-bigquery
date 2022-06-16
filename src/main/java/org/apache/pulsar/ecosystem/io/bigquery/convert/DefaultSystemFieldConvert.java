@@ -22,7 +22,7 @@ import com.google.cloud.bigquery.StandardSQLTypeName;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.client.api.schema.GenericObject;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
 import org.apache.pulsar.functions.api.Record;
 
 /**
@@ -85,7 +85,7 @@ public final class DefaultSystemFieldConvert {
             case "__producer_name__":
                 return record.getMessage().get().getProducerName();
             default:
-                throw new BigQueryConnectorRuntimeException("Not support convert system field: " + fieldName);
+                throw new BQConnectorDirectFailException("Not support convert system field: " + fieldName);
         }
     }
 }

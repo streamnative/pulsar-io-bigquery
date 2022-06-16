@@ -31,7 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
 
 /**
  * data writer use committed mould.
@@ -61,7 +61,7 @@ public class DataWriterPending extends DataWriterCommitted {
                 errorMsg.add(err.getErrorMessage());
             }
             result.completeExceptionally(
-                    new BigQueryConnectorRuntimeException("Error committing the streams:" + errorMsg.toString()));
+                    new BQConnectorDirectFailException("Error committing the streams:" + errorMsg));
         }
         return result;
     }

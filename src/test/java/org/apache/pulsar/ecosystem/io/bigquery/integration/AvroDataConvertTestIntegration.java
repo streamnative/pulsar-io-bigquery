@@ -26,7 +26,6 @@ import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableResult;
-import java.io.IOException;
 import java.util.UUID;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Producer;
@@ -42,7 +41,7 @@ import org.junit.Test;
 public class AvroDataConvertTestIntegration {
 
     @Test
-    public void testFirst() throws IOException, InterruptedException {
+    public void testFirst() throws Exception {
 
         // 0. clean bigquery data.
         BigQueryConfig bigQueryConfig = new BigQueryConfig();

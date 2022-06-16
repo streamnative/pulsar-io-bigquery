@@ -33,7 +33,7 @@ import org.apache.avro.LogicalTypes;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.logicaltype.AvroLogicalFieldConvert;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.record.AvroRecordConverter;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorSchemaException;
 import org.apache.pulsar.functions.api.Record;
 
 
@@ -109,7 +109,7 @@ public class AvroSchemaConvert extends AbstractSchemaConvert {
                     result = Optional.ofNullable(null);
                     break;
                 default:
-                    throw new BigQueryConnectorRuntimeException(
+                    throw new BQConnectorSchemaException(
                             "AVRO schema not support field type:" + schema.getType());
             }
         }

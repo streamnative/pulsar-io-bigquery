@@ -18,18 +18,22 @@
  */
 package org.apache.pulsar.ecosystem.io.bigquery;
 
-import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
+import com.google.api.gax.rpc.InternalException;
+import com.google.api.gax.rpc.NotFoundException;
+import com.google.api.gax.rpc.ResourceExhaustedException;
+import com.google.api.gax.rpc.UnavailableException;
+import com.google.api.gax.rpc.UnknownException;
 import com.google.cloud.bigquery.storage.v1.ProtoSchema;
+import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.DynamicMessage;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericObject;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
 import org.apache.pulsar.functions.api.Record;
 
 /**
@@ -42,84 +46,78 @@ public class DataWriterBatchWrapper {
     private final DataWriter dataWriter;
     private final int batchMaxSize;
     private final int batchMaxTime;
+    private final int maxRetryNum;
     private List<DataWriter.DataWriterRequest> batch;
     private long lastFlushTime;
     private final SchemaManager schemaManager;
-    private final Executor callBackThread;
-
     public DataWriterBatchWrapper(DataWriter dataWriter, SchemaManager schemaManager,
-                                  Executor executor, int batchMaxSize, int batchMaxTime) {
+                                  int batchMaxSize, int batchMaxTime, int maxRetryNum) {
         this.dataWriter = dataWriter;
         this.schemaManager = schemaManager;
-        this.callBackThread = executor;
         this.batchMaxSize = batchMaxSize;
         this.batchMaxTime = batchMaxTime;
+        this.maxRetryNum = maxRetryNum;
         this.lastFlushTime = System.currentTimeMillis();
         this.batch = new ArrayList<>(batchMaxSize);
     }
 
-    public void append(List<DataWriter.DataWriterRequest> dataWriterRequests) {
+    public void append(DataWriter.DataWriterRequest dataWriterRequests) {
         if (dataWriterRequests != null) {
-            batch.addAll(dataWriterRequests);
+            batch.add(dataWriterRequests);
         }
         long currentTimeMillis = System.currentTimeMillis();
         if (batch.size() > 1 && (currentTimeMillis - lastFlushTime > batchMaxTime || batch.size() >= batchMaxSize)) {
-
             log.info("flush size {}", batch.size());
             List<DynamicMessage> dynamicMessages = batch.stream()
                     .map(dataWriterRequest -> dataWriterRequest.getDynamicMessage())
                     .collect(Collectors.toList());
-            // 1. try first append.
+            retryOrUpdateSchemaWhenAppendField(dynamicMessages);
+            batch.clear();
+            lastFlushTime = System.currentTimeMillis();
+        }
+    }
+
+    private void retryOrUpdateSchemaWhenAppendField(List<DynamicMessage> dynamicMessages) {
+        int retryCount = 0;
+        while (true) {
+            Throwable exception = null;
             try {
-                CompletableFuture<AppendRowsResponse> append = dataWriter.append(dynamicMessages);
-                callBack(batch, append);
-                return;
+                dataWriter.append(dynamicMessages).get(10, TimeUnit.SECONDS);
+            } catch (ExecutionException e) {
+                exception = e.getCause();
             } catch (Exception e) {
-                // TODO Refinement exceptions, other exceptions, throw exceptions directly
-                log.warn("Append record field, try update schema: <{}>", e.getMessage());
+                exception = e;
+            }
+
+            if (exception == null) {
+                break;
+            } else if (retryCount >= 10) {
+                throw new BQConnectorDirectFailException("Append failed try 10 count still failed.", exception);
+            } else if (exception instanceof NotFoundException) {
+                log.warn("Happen exception <{}>,retry to after update schema", exception.getMessage());
                 List<Record<GenericObject>> records =
                         batch.stream().map(dataWriterRequest -> dataWriterRequest.getRecord())
                                 .collect(Collectors.toList());
                 schemaManager.updateSchema(records);
-            }
-
-            // 2. try to append again.
-            try {
-                updateResources(schemaManager.getProtoSchema());
-                CompletableFuture<AppendRowsResponse> append = dataWriter.append(dynamicMessages);
-                callBack(batch, append);
-            } catch (Exception e) {
-                // TODO Refinement exceptions, other exceptions, throw exceptions directly
-                throw new BigQueryConnectorRuntimeException(
-                        "Append record failed, after trying to update the schema it still fails", e);
+                updateStream(schemaManager.getProtoSchema());
+                retryCount++;
+            } else if (exception instanceof InternalException
+                    || exception instanceof UnknownException
+                    || exception instanceof UnavailableException
+                    || exception instanceof ResourceExhaustedException) {
+                // Exceptions that can be retried trying to recover.
+                retryCount++;
+                Uninterruptibles.sleepUninterruptibly(2, TimeUnit.SECONDS);
+                log.warn("Happen exception <{}>, retry to after 2 seconds", exception.getMessage());
+            } else {
+                throw new BQConnectorDirectFailException("Encountered an unrecoverable exception, "
+                        + "please check the error code for help from the documentation: "
+                        + "https://cloud.google.com/bigquery/docs/error-messages", exception);
             }
         }
     }
 
-    private void callBack(List<DataWriter.DataWriterRequest> dataWriterRequests,
-                          CompletableFuture<AppendRowsResponse> append) {
-        append.handleAsync((appendRowsResponse, throwable) -> {
-            if (throwable != null) {
-                for (DataWriter.DataWriterRequest dataWriterRequest : dataWriterRequests) {
-                    // TODO Refinement exceptions, other exceptions, throw exceptions directly
-                    dataWriterRequest.getRecord().fail();
-                    log.warn("Append fail, fail this message <{}>",
-                            dataWriterRequest.getRecord().getMessage().get().getMessageId(), throwable);
-                }
-            } else {
-                for (DataWriter.DataWriterRequest dataWriterRequest : dataWriterRequests) {
-                    dataWriterRequest.getRecord().ack();
-                    log.info("Append success, ack this message <{}>",
-                            dataWriterRequest.getRecord().getMessage().get().getMessageId());
-                }
-            }
-            return null;
-        }, callBackThread);
-        batch = new ArrayList<>(batchMaxSize);
-        lastFlushTime = System.currentTimeMillis();
-    }
-
-    public void updateResources(ProtoSchema protoSchema) throws IOException {
+    public void updateStream(ProtoSchema protoSchema) {
         dataWriter.updateStream(protoSchema);
     }
 

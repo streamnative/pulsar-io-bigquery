@@ -43,7 +43,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.api.schema.GenericObject;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
 import org.apache.pulsar.functions.api.Record;
 import org.junit.Before;
 import org.junit.Test;
@@ -121,7 +121,7 @@ public class SchemaManagerTest {
         try {
             schemaManager2.updateSchema((Record<GenericObject>) genericRecordRecordFirst);
             fail("Should has failed");
-        } catch (BigQueryConnectorRuntimeException e) {
+        } catch (BQConnectorDirectFailException e) {
         }
 
         // update schema, add col4 to schema and update col3 model to NULLABLE

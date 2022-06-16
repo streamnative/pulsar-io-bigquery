@@ -27,7 +27,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
 import org.apache.pulsar.io.core.SinkContext;
 import org.junit.Test;
 
@@ -53,7 +53,7 @@ public class BigQueryConfigTest {
         try {
             bigQueryConfig.getDefaultSystemField();
             fail("Should has failed");
-        } catch (BigQueryConnectorRuntimeException e) {
+        } catch (BQConnectorDirectFailException e) {
         }
     }
 

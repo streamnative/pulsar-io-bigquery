@@ -26,8 +26,8 @@ import java.util.List;
 import java.util.Map;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.RecordConvertException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorRecordConvertException;
 import org.apache.pulsar.functions.api.Record;
 
 /**
@@ -46,14 +46,15 @@ public class RecordConverterHandler implements RecordConverter {
     @Override
     public DynamicMessage convertRecord(Record<GenericObject> record,
                                         Descriptors.Descriptor protoSchema,
-                                        List<TableFieldSchema> tableFieldSchema) throws RecordConvertException {
+                                        List<TableFieldSchema> tableFieldSchema) throws
+            BQConnectorRecordConvertException {
         SchemaType type = record.getSchema().getSchemaInfo().getType();
         if (type.isPrimitive()) {
             return primitiveRecordConvert.convertRecord(record, protoSchema, tableFieldSchema);
         }
         RecordConverter recordConverter = recordConverts.get(type);
         if (recordConverter == null) {
-            throw new BigQueryConnectorRuntimeException("Not support schema type: " + type);
+            throw new BQConnectorDirectFailException("Not support schema type: " + type);
         }
         return recordConverter.convertRecord(record, protoSchema, tableFieldSchema);
     }

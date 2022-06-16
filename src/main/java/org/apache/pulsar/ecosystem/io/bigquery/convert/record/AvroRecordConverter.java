@@ -34,8 +34,8 @@ import org.apache.avro.util.Utf8;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.DefaultSystemFieldConvert;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.logicaltype.AvroLogicalFieldConvert;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.RecordConvertException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorRecordConvertException;
 import org.apache.pulsar.functions.api.Record;
 
 /**
@@ -54,13 +54,14 @@ public class AvroRecordConverter extends AbstractRecordConvert {
     protected DynamicMessage.Builder convertUserField(DynamicMessage.Builder protoMsg, Record<GenericObject> record,
                                                       Descriptors.Descriptor protoDescriptor,
                                                       List<TableFieldSchema> tableFieldSchema)
-                                                                                      throws RecordConvertException {
+                                                      throws BQConnectorRecordConvertException {
         return convertUserField(protoMsg, record.getValue().getNativeObject(), protoDescriptor, tableFieldSchema);
     }
 
     protected DynamicMessage.Builder convertUserField(DynamicMessage.Builder protoMsg, Object nativeRecord,
                                       Descriptors.Descriptor protoDescriptor,
-                                      List<TableFieldSchema> tableFieldSchema) throws RecordConvertException {
+                                      List<TableFieldSchema> tableFieldSchema) throws
+            BQConnectorRecordConvertException {
         org.apache.avro.generic.GenericRecord avroNativeRecord =
                 (org.apache.avro.generic.GenericRecord) nativeRecord;
         List<String> pulsarFields = avroNativeRecord.getSchema().getFields().
@@ -88,7 +89,7 @@ public class AvroRecordConverter extends AbstractRecordConvert {
             pulsarFields.remove(fieldName);
         }
         if (!pulsarFields.isEmpty()) {
-            throw new RecordConvertException("Convert exception, "
+            throw new BQConnectorRecordConvertException("Convert exception, "
                     + "pulsar have some field not found by big query: "
                     + pulsarFields);
         }
@@ -97,7 +98,7 @@ public class AvroRecordConverter extends AbstractRecordConvert {
 
     private void fillRepeatedField(DynamicMessage.Builder protoMsg, Schema avroFieldSchema, Object value,
                                    Descriptors.FieldDescriptor pbFieldDescriptor,
-                                   TableFieldSchema tableFieldSchema) throws RecordConvertException {
+                                   TableFieldSchema tableFieldSchema) throws BQConnectorRecordConvertException {
         if (value instanceof Map<?, ?>) {
             Map<?, ?> map = (HashMap<?, ?>) value;
             for (Map.Entry<?, ?> entry : map.entrySet()) {
@@ -127,14 +128,14 @@ public class AvroRecordConverter extends AbstractRecordConvert {
                         arrayObject, pbFieldDescriptor, tableFieldSchema);
             }
         } else {
-            throw new RecordConvertException("Not support repeated type: " + value.getClass());
+            throw new BQConnectorRecordConvertException("Not support repeated type: " + value.getClass());
         }
     }
 
 
     private void fillField(DynamicMessage.Builder protoMsg, Schema avroFieldSchema, Object value,
                            Descriptors.FieldDescriptor pbFieldDescriptor, TableFieldSchema tableFieldSchema)
-            throws RecordConvertException {
+            throws BQConnectorRecordConvertException {
         TableFieldSchema.Type type = tableFieldSchema.getType();
         if (avroFieldSchema.getLogicalType() != null
                 && logicalFieldConvert.isLogicType(avroFieldSchema.getLogicalType())) {
@@ -210,7 +211,7 @@ public class AvroRecordConverter extends AbstractRecordConvert {
                     return type;
                 }
             }
-            throw new BigQueryConnectorRuntimeException("There are no types in composite types that are not NULL");
+            throw new BQConnectorDirectFailException("There are no types in composite types that are not NULL");
         }
         return avroFieldSchema;
     }
