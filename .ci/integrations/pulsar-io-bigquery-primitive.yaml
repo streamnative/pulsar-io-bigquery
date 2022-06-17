@@ -37,7 +37,7 @@ configs:
   #
   # This field is optional.
   #
-  batchMaxSize: 10
+  batchMaxSize: 5
 
   # Batch max wait time: milliseconds
   #
