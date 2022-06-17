@@ -32,8 +32,15 @@ import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import io.grpc.Status;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.functions.api.Record;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -65,14 +72,9 @@ public class DataWriterBatchWrapperTest {
         DataWriterBatchWrapper dataWriterBatchWrapper = new DataWriterBatchWrapper(dataWriter, schemaManager,
                 5, 10000, 10);
 
-        List<DataWriter.DataWriterRequest> dataWriterRequests = new ArrayList<>();
-        dataWriterRequests.add(new DataWriter.DataWriterRequest());
-        dataWriterRequests.add(new DataWriter.DataWriterRequest());
-        dataWriterRequests.add(new DataWriter.DataWriterRequest());
-        dataWriterRequests.add(new DataWriter.DataWriterRequest());
-
+        Record record = new MockRecord(new CountDownLatch(0));
         for (int i = 0; i < 5; i++) {
-            dataWriterBatchWrapper.append(new DataWriter.DataWriterRequest());
+            dataWriterBatchWrapper.append(new DataWriter.DataWriterRequest(null, record));
         }
 
         verify(dataWriter, Mockito.times(1)).updateStream(Mockito.any());
@@ -81,7 +83,7 @@ public class DataWriterBatchWrapperTest {
 
     @Test(timeout = 20000)
     @SuppressWarnings("unchecked")
-    public void testAppendRetry() {
+    public void testAppendRetry() throws InterruptedException {
 
         DataWriter dataWriter = mock(DataWriter.class);
 
@@ -111,14 +113,45 @@ public class DataWriterBatchWrapperTest {
         DataWriterBatchWrapper dataWriterBatchWrapper = new DataWriterBatchWrapper(dataWriter, schemaManager,
                 5, 10000, 10);
 
-        List<DataWriter.DataWriterRequest> dataWriterRequests = new ArrayList<>();
-        dataWriterRequests.add(new DataWriter.DataWriterRequest());
-        dataWriterRequests.add(new DataWriter.DataWriterRequest());
-        dataWriterRequests.add(new DataWriter.DataWriterRequest());
-        dataWriterRequests.add(new DataWriter.DataWriterRequest());
-
-        for (int i = 0; i < 5; i++) {
-            dataWriterBatchWrapper.append(new DataWriter.DataWriterRequest());
+        CountDownLatch countDownLatch = new CountDownLatch(5);
+        MockRecord mockRecord = new MockRecord(countDownLatch);
+        for (int i = 0; i < countDownLatch.getCount(); i++) {
+            dataWriterBatchWrapper.append(new DataWriter.DataWriterRequest(null, mockRecord));
         }
+
+        countDownLatch.await(30000, TimeUnit.MILLISECONDS);
+    }
+
+    @SuppressWarnings("unchecked")
+    class MockRecord implements Record<GenericObject> {
+
+        private CountDownLatch countDownLatch;
+
+        private Message message;
+
+        public MockRecord(CountDownLatch countDownLatch) {
+            this.countDownLatch = countDownLatch;
+            MessageId messageId = Mockito.mock(MessageId.class);
+            Mockito.when(messageId.toString()).thenReturn("1:1:123");
+            message = Mockito.mock(Message.class);
+            Mockito.when(message.getMessageId()).thenReturn(messageId);
+        }
+
+        @Override
+        public GenericObject getValue() {
+            return null;
+        }
+
+        @Override
+        public Optional<Message<GenericObject>> getMessage() {
+            return Optional.of(message);
+        }
+
+        @Override
+        public void ack() {
+            System.out.println("ack message");
+            countDownLatch.countDown();
+        }
+
     }
 }

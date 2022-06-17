@@ -72,6 +72,11 @@ public class DataWriterBatchWrapper {
                     .map(dataWriterRequest -> dataWriterRequest.getDynamicMessage())
                     .collect(Collectors.toList());
             retryOrUpdateSchemaWhenAppendField(dynamicMessages);
+            for (DataWriter.DataWriterRequest dataWriterRequest : batch) {
+                dataWriterRequest.getRecord().ack();
+                log.info("Append success, ack this message <{}>",
+                        dataWriterRequest.getRecord().getMessage().get().getMessageId());
+            }
             batch.clear();
             lastFlushTime = System.currentTimeMillis();
         }
