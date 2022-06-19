@@ -19,23 +19,24 @@
 package org.apache.pulsar.ecosystem.io.bigquery.exception;
 
 /**
- * big query connector run time exception.
+ * Big query connector direct fail exception, connector not handle this exception.
+ * This direct throws to function runtime, then the function exit.
  */
-public class BigQueryConnectorRuntimeException extends RuntimeException {
+public class BQConnectorDirectFailException extends RuntimeException {
 
-    public BigQueryConnectorRuntimeException() {
+    public BQConnectorDirectFailException() {
         super();
     }
 
-    public BigQueryConnectorRuntimeException(String message) {
+    public BQConnectorDirectFailException(String message) {
         super(message);
     }
 
-    public BigQueryConnectorRuntimeException(Throwable cause) {
+    public BQConnectorDirectFailException(Throwable cause) {
         super(cause);
     }
 
-    public BigQueryConnectorRuntimeException(String message, Throwable cause) {
+    public BQConnectorDirectFailException(String message, Throwable cause) {
         super(message, cause);
     }
 }

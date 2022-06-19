@@ -27,7 +27,7 @@ import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.DefaultSystemFieldConvert;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.logicaltype.PrimitiveLogicalFieldConvert;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
 import org.apache.pulsar.functions.api.Record;
 
 /**
@@ -88,7 +88,7 @@ public class PrimitiveRecordConvert extends AbstractRecordConvert {
                     }
                     break;
             }
-            throw new BigQueryConnectorRuntimeException("Not support type: " + type
+            throw new BQConnectorDirectFailException("Not support type: " + type
                     + ", data class: " + nativeObject.getClass().getName());
         }
     }

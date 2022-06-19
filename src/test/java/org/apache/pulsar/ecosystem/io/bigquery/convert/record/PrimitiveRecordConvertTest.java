@@ -24,7 +24,6 @@ import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
-import java.io.IOException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -44,7 +43,6 @@ import org.apache.pulsar.ecosystem.io.bigquery.PrimitiveRecordsUtils;
 import org.apache.pulsar.ecosystem.io.bigquery.SchemaManager;
 import org.apache.pulsar.ecosystem.io.bigquery.SchemaManagerTest;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.DefaultSystemFieldConvert;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.RecordConvertException;
 import org.apache.pulsar.functions.api.Record;
 import org.junit.Assert;
 import org.junit.Test;
@@ -55,7 +53,7 @@ import org.junit.Test;
 public class PrimitiveRecordConvertTest {
 
     @Test
-    public void convertUserSchema() throws IOException, RecordConvertException {
+    public void convertUserSchema() throws Exception {
         List<PrimitiveTestWrapper> allTypeField = new ArrayList<>();
         allTypeField.add(new PrimitiveTestWrapper<String>(Schema.STRING, "str", "str"));
         allTypeField.add(new PrimitiveTestWrapper<Boolean>(Schema.BOOL, true, true));

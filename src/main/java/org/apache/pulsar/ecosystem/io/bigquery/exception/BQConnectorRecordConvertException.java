@@ -19,18 +19,18 @@
 package org.apache.pulsar.ecosystem.io.bigquery.exception;
 
 /**
- * Record convert exception.
+ * Record convert exception. Can be restored by updating the schema.
  */
-public class RecordConvertException extends BigQueryConnectorException {
-    public RecordConvertException() {
+public class BQConnectorRecordConvertException extends Exception {
+    public BQConnectorRecordConvertException() {
         super();
     }
 
-    public RecordConvertException(String message) {
+    public BQConnectorRecordConvertException(String message) {
         super(message);
     }
 
-    public RecordConvertException(String message, Throwable cause) {
+    public BQConnectorRecordConvertException(String message, Throwable cause) {
         super(message, cause);
     }
 }

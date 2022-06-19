@@ -39,7 +39,6 @@ import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
 import com.google.cloud.bigquery.storage.v1.TableName;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.Descriptors;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -56,7 +55,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.schema.SchemaConvert;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.schema.SchemaConvertHandler;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorSchemaException;
 import org.apache.pulsar.functions.api.Record;
 
 /**
@@ -87,7 +86,7 @@ public class SchemaManager {
     private final int partitionedTableIntervalDay;
     private final boolean clusteredTables;
 
-    public SchemaManager(BigQueryConfig bigQueryConfig) throws IOException {
+    public SchemaManager(BigQueryConfig bigQueryConfig) {
         this.bigquery = bigQueryConfig.createBigQuery();
         this.tableId = bigQueryConfig.getTableId();
         this.tableName = bigQueryConfig.getTableName();
@@ -117,20 +116,23 @@ public class SchemaManager {
                 if (autoCreateTable) {
                     log.info("Table is not exist and auto create table equals true, start creating table.");
                 } else {
-                    throw new BigQueryConnectorRuntimeException(
+                    throw new BQConnectorSchemaException(
                             "Init table failed, table is not exist and autoCreateTable == false");
                 }
             } else {
-                throw e;
+                throw new BQConnectorSchemaException(e);
             }
         }
-
        Schema schema = schemaConvert.convertSchema(records);
-        TableInfo tableInfo = TableInfo.newBuilder(tableId, getTableInfo(schema)).build();
-       bigquery.create(tableInfo);
+       TableInfo tableInfo = TableInfo.newBuilder(tableId, getTableInfo(schema)).build();
+       try {
+           bigquery.create(tableInfo);
+       } catch (BigQueryException e) {
+           throw new BQConnectorSchemaException("Create table failed. " + e.getMessage(), e);
+       }
        updateCacheSchema(schema);
        log.info("create table success <{}>", tableId);
-        return schema;
+       return schema;
     }
 
     private StandardTableDefinition getTableInfo(Schema schema) {
@@ -163,7 +165,7 @@ public class SchemaManager {
      */
     public void updateSchema(List<Record<GenericObject>> records) {
         if (!autoUpdateTable) {
-            throw new BigQueryConnectorRuntimeException("Table cannot be update,"
+            throw new BQConnectorSchemaException("Table cannot be update,"
                     + " autoUpdateTable == false.");
         }
         Schema bigQuerySchema = initTable(records.get(0));
@@ -174,7 +176,11 @@ public class SchemaManager {
             mergeSchema = mergeSchema(toMergeSchema, mergeSchema);
         }
         TableInfo tableInfo = Table.newBuilder(tableId, getTableInfo(mergeSchema)).build();
-        bigquery.update(tableInfo);
+        try {
+            bigquery.update(tableInfo);
+        } catch (BigQueryException e) {
+            throw new BQConnectorSchemaException("Update schema failed. " + e.getMessage(), e);
+        }
         updateCacheSchema(mergeSchema);
         log.info("update table success <{}>", tableInfo);
     }

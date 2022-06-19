@@ -19,19 +19,23 @@
 package org.apache.pulsar.ecosystem.io.bigquery.exception;
 
 /**
- * big query connector exception.
+ * big query connector schema, direct failed.
  */
-public class BigQueryConnectorException extends Exception {
+public class BQConnectorSchemaException extends BQConnectorDirectFailException {
 
-    public BigQueryConnectorException() {
+    public BQConnectorSchemaException() {
         super();
     }
 
-    public BigQueryConnectorException(String message) {
+    public BQConnectorSchemaException(String message) {
         super(message);
     }
 
-    public BigQueryConnectorException(String message, Throwable cause) {
+    public BQConnectorSchemaException(Throwable cause) {
+        super(cause);
+    }
+
+    public BQConnectorSchemaException(String message, Throwable cause) {
         super(message, cause);
     }
 }

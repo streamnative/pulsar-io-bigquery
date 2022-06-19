@@ -24,6 +24,27 @@ configs:
   #
   partitionedTables: true
 
+  # Optional Committed or Pending.
+  # When equal to Pending, it is recommended to increase batchMaxSize and batchMaxTime.
+  # The mode controls when data written to the stream becomes visible in BigQuery for reading.
+  # Refer: https://cloud.google.com/bigquery/docs/write-api#application-created_streams
+  #
+  # This field is optional.
+  #
+  visibleModel: Pending
+
+  # Maximum number of batch messages
+  #
+  # This field is optional.
+  #
+  batchMaxSize: 5
+
+  # Batch max wait time: milliseconds
+  #
+  # This field is optional.
+  #
+  batchMaxTime: 3000
+
   # clusteredTableIntervalDay is number of days between partitioning of the partitioned table
   #
   # This field is optional.

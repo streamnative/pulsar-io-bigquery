@@ -30,7 +30,6 @@ import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +38,7 @@ import org.apache.pulsar.ecosystem.io.bigquery.AvroRecordsUtils;
 import org.apache.pulsar.ecosystem.io.bigquery.BigQueryConfig;
 import org.apache.pulsar.ecosystem.io.bigquery.SchemaManager;
 import org.apache.pulsar.ecosystem.io.bigquery.SchemaManagerTest;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.RecordConvertException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorRecordConvertException;
 import org.apache.pulsar.functions.api.Record;
 import org.junit.Assert;
 import org.junit.Test;
@@ -51,7 +50,7 @@ public class AvroRecordConverterTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testConvertRecord() throws IOException, RecordConvertException {
+    public void testConvertRecord() throws Exception {
 
         AvroRecordConverter avroRecordConverter = new AvroRecordConverter();
 
@@ -85,7 +84,7 @@ public class AvroRecordConverterTest {
         try {
             avroRecordConverter.convertRecord(recordRecordSecond, firstDescriptor, firstTableSchema.getFieldsList());
             fail("Should has failed");
-        } catch (RecordConvertException e) {
+        } catch (BQConnectorRecordConvertException e) {
         }
     }
 

@@ -49,7 +49,7 @@ public class BigQuerySinkAllTestAvro {
         sinkConfig.put("partitionedTables", true);
         sinkConfig.put("partitionedTableIntervalDay", 10);
         sinkConfig.put("defaultSystemField", "__event_time__");
-        sinkConfig.put("visibleModel", "Pending");
+        sinkConfig.put("visibleModel", "Committed");
         bigQuerySink.open(sinkConfig, null);
 
         Record<GenericObject> genericRecordRecordFirst = AvroRecordsUtils.getGenericRecordRecordFirst();

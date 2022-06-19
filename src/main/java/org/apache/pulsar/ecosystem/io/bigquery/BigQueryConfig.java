@@ -36,7 +36,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Data;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
 import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
@@ -141,7 +141,7 @@ public class BigQueryConfig implements Serializable {
                         .map(field -> {
                             String trim = field.trim();
                             if (trim.contains(" ")) {
-                                throw new BigQueryConnectorRuntimeException(
+                                throw new BQConnectorDirectFailException(
                                         "There cannot be spaces in the field: " + defaultSystemField);
                             }
                             return trim;
@@ -156,7 +156,7 @@ public class BigQueryConfig implements Serializable {
         return fields;
     }
 
-    public BigQuery createBigQuery() throws IOException {
+    public BigQuery createBigQuery() {
         if (credentialJsonString != null && !credentialJsonString.isEmpty()) {
             return BigQueryOptions.newBuilder().setCredentials(getGoogleCredentials()).build().getService();
         } else {
@@ -164,21 +164,29 @@ public class BigQueryConfig implements Serializable {
         }
     }
 
-    public BigQueryWriteClient createBigQueryWriteClient() throws IOException {
-        if (credentialJsonString != null && !credentialJsonString.isEmpty()) {
-            BigQueryWriteSettings settings =
-                    BigQueryWriteSettings.newBuilder().setCredentialsProvider(() -> getGoogleCredentials()).build();
-            return BigQueryWriteClient.create(settings);
-        } else {
-            return BigQueryWriteClient.create();
+    public BigQueryWriteClient createBigQueryWriteClient() {
+        try {
+            if (credentialJsonString != null && !credentialJsonString.isEmpty()) {
+                GoogleCredentials googleCredentials = getGoogleCredentials();
+                BigQueryWriteSettings settings =
+                        BigQueryWriteSettings.newBuilder().setCredentialsProvider(() -> googleCredentials).build();
+                return BigQueryWriteClient.create(settings);
+            } else {
+                return BigQueryWriteClient.create();
+            }
+        } catch (IOException e) {
+            throw new BQConnectorDirectFailException(e);
         }
-
     }
 
-    private GoogleCredentials getGoogleCredentials() throws IOException {
-        GoogleCredentials googleCredentials = GoogleCredentials
-                .fromStream(new ByteArrayInputStream(credentialJsonString.getBytes(StandardCharsets.UTF_8)));
-        return googleCredentials;
+    private GoogleCredentials getGoogleCredentials() {
+        try {
+            GoogleCredentials googleCredentials = GoogleCredentials
+                    .fromStream(new ByteArrayInputStream(credentialJsonString.getBytes(StandardCharsets.UTF_8)));
+            return googleCredentials;
+        } catch (IOException e) {
+            throw new BQConnectorDirectFailException(e);
+        }
     }
 
     public static BigQueryConfig load(Map<String, Object> map, SinkContext sinkContext) {

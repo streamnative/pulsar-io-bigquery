@@ -37,7 +37,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
 
 /**
  * data writer use committed mould.
@@ -87,7 +87,12 @@ public class DataWriterCommitted implements DataWriter {
 
     @Override
     public void updateStream(ProtoSchema protoSchema) {
-        closeStream();
+        try {
+            closeStream();
+        } catch (Exception e) {
+            log.warn("Close stream exception, ignore. {} ", e.getMessage());
+        }
+        // Wait a while before trying to update the stream
         Uninterruptibles.sleepUninterruptibly(5, TimeUnit.SECONDS);
         tryFetchStream(protoSchema);
     }
@@ -106,8 +111,8 @@ public class DataWriterCommitted implements DataWriter {
                 log.info("Update resources success, start new write stream: {}", writeStream.getName());
                 return;
             } catch (Exception e) {
-                if (tryCount == 5) {
-                    throw new BigQueryConnectorRuntimeException(
+                if (tryCount >= 5) {
+                    throw new BQConnectorDirectFailException(
                             "Update big query resources failed, it doesn't work even after 5 tries, please check", e);
                 } else {
                     tryCount++;
