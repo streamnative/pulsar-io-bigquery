@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteSettings;
+import com.google.cloud.bigquery.storage.v1.TableName;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
@@ -35,7 +36,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Data;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
 import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
@@ -62,6 +63,34 @@ public class BigQueryConfig implements Serializable {
             defaultValue = "",
             help = "tableName is BigQuery table name")
     private String tableName;
+
+    @FieldDoc(required = false,
+            defaultValue = "Committed",
+            help = "Optional Committed or Pending."
+                    + "When equal to Pending, it is recommended to increase batchMaxSize and batchMaxTime."
+                    + "The mode controls when data written to the stream becomes visible in BigQuery for reading."
+                    + "Refer: https://cloud.google.com/bigquery/docs/write-api#application-created_streams")
+    private VisibleModel visibleModel;
+
+    @FieldDoc(required = false,
+            defaultValue = "20",
+            help = "Maximum number of batch messages")
+    private int batchMaxSize;
+
+    @FieldDoc(required = false,
+            defaultValue = "5000",
+            help = "Batch max wait time: milliseconds")
+    private int batchMaxTime;
+
+    @FieldDoc(required = false,
+            defaultValue = "2000",
+            help = "Batch trigger flush interval time: milliseconds")
+    private int batchFlushIntervalTime;
+
+    @FieldDoc(required = false,
+            defaultValue = "20",
+            help = "When append failed, max retry num. Wait 2 seconds for each retry")
+    private int failedMaxRetryNum;
 
     @FieldDoc(required = false,
             defaultValue = "false",
@@ -112,13 +141,17 @@ public class BigQueryConfig implements Serializable {
         return TableId.of(projectId, datasetName, tableName);
     }
 
+    public TableName getTableName() {
+        return TableName.of(projectId, datasetName, tableName);
+    }
+
     public Set<String> getDefaultSystemField() {
         Set<String> fields = Optional.ofNullable(defaultSystemField)
                 .map(__ -> Arrays.stream(defaultSystemField.split(","))
                         .map(field -> {
                             String trim = field.trim();
                             if (trim.contains(" ")) {
-                                throw new BigQueryConnectorRuntimeException(
+                                throw new BQConnectorDirectFailException(
                                         "There cannot be spaces in the field: " + defaultSystemField);
                             }
                             return trim;
@@ -133,7 +166,7 @@ public class BigQueryConfig implements Serializable {
         return fields;
     }
 
-    public BigQuery createBigQuery() throws IOException {
+    public BigQuery createBigQuery() {
         if (credentialJsonString != null && !credentialJsonString.isEmpty()) {
             return BigQueryOptions.newBuilder().setCredentials(getGoogleCredentials()).build().getService();
         } else {
@@ -141,24 +174,42 @@ public class BigQueryConfig implements Serializable {
         }
     }
 
-    public BigQueryWriteClient createBigQueryWriteClient() throws IOException {
-        if (credentialJsonString != null && !credentialJsonString.isEmpty()) {
-            BigQueryWriteSettings settings =
-                    BigQueryWriteSettings.newBuilder().setCredentialsProvider(() -> getGoogleCredentials()).build();
-            return BigQueryWriteClient.create(settings);
-        } else {
-            return BigQueryWriteClient.create();
+    public BigQueryWriteClient createBigQueryWriteClient() {
+        try {
+            if (credentialJsonString != null && !credentialJsonString.isEmpty()) {
+                GoogleCredentials googleCredentials = getGoogleCredentials();
+                BigQueryWriteSettings settings =
+                        BigQueryWriteSettings.newBuilder().setCredentialsProvider(() -> googleCredentials).build();
+                return BigQueryWriteClient.create(settings);
+            } else {
+                return BigQueryWriteClient.create();
+            }
+        } catch (IOException e) {
+            throw new BQConnectorDirectFailException(e);
         }
-
     }
 
-    private GoogleCredentials getGoogleCredentials() throws IOException {
-        GoogleCredentials googleCredentials = GoogleCredentials
-                .fromStream(new ByteArrayInputStream(credentialJsonString.getBytes(StandardCharsets.UTF_8)));
-        return googleCredentials;
+    private GoogleCredentials getGoogleCredentials() {
+        try {
+            GoogleCredentials googleCredentials = GoogleCredentials
+                    .fromStream(new ByteArrayInputStream(credentialJsonString.getBytes(StandardCharsets.UTF_8)));
+            return googleCredentials;
+        } catch (IOException e) {
+            throw new BQConnectorDirectFailException(e);
+        }
     }
 
     public static BigQueryConfig load(Map<String, Object> map, SinkContext sinkContext) {
         return IOConfigUtils.loadWithSecrets(map, BigQueryConfig.class, sinkContext);
+    }
+
+
+    /**
+     * The mode controls when data written to the stream becomes visible in BigQuery for reading.
+     * Refer: https://cloud.google.com/bigquery/docs/write-api#application-created_streams
+     */
+    enum VisibleModel {
+        Committed,
+        Pending
     }
 }

@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
 import org.apache.pulsar.ecosystem.io.bigquery.utils.TimeUtils;
 
 /**
@@ -56,7 +56,7 @@ public class AvroLogicalFieldConvert implements LogicalFieldConvert<LogicalType>
     public StandardSQLTypeName convertFieldType(LogicalType pulsarFieldType) {
         return Optional.ofNullable(logicalFields.get(pulsarFieldType.getClass()))
                 .map(v -> StandardSQLTypeName.valueOf(v.name()))
-                .orElseThrow(() -> new BigQueryConnectorRuntimeException(
+                .orElseThrow(() -> new BQConnectorDirectFailException(
                         "AVRO schema not support logical type:" + pulsarFieldType.getName()));
     }
 
@@ -109,7 +109,7 @@ public class AvroLogicalFieldConvert implements LogicalFieldConvert<LogicalType>
                 }
                 break;
         }
-        throw new BigQueryConnectorRuntimeException("Not support logic type: " + pulsarFieldType
+        throw new BQConnectorDirectFailException("Not support logic type: " + pulsarFieldType
                 + ", avro data class: " + pulsarFieldValue.getClass().getName());
     }
 

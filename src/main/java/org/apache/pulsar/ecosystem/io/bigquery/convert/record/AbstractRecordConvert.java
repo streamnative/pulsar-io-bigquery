@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.ecosystem.io.bigquery.convert.record;
 
-import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
@@ -27,7 +26,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.DefaultSystemFieldConvert;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.RecordConvertException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorRecordConvertException;
 import org.apache.pulsar.functions.api.Record;
 
 /**
@@ -37,22 +36,20 @@ import org.apache.pulsar.functions.api.Record;
 public abstract class AbstractRecordConvert implements RecordConverter {
 
     @Override
-    public ProtoRows convertRecord(Record<GenericObject> record, Descriptors.Descriptor protoSchema,
-                                   List<TableFieldSchema> tableFieldSchema) throws RecordConvertException {
-        ProtoRows.Builder rowsBuilder = ProtoRows.newBuilder();
+    public DynamicMessage convertRecord(Record<GenericObject> record, Descriptors.Descriptor protoSchema,
+                                   List<TableFieldSchema> tableFieldSchema) throws BQConnectorRecordConvertException {
         DynamicMessage.Builder protoMsg = DynamicMessage.newBuilder(protoSchema);
         convertSystemField(protoMsg, record, protoSchema, tableFieldSchema);
         convertUserField(protoMsg, record, protoSchema, tableFieldSchema);
         DynamicMessage dynamicMessage = buildMessage(protoMsg);
-        rowsBuilder.addSerializedRows(dynamicMessage.toByteString());
-        return rowsBuilder.build();
+        return dynamicMessage;
     }
 
     protected abstract DynamicMessage.Builder convertUserField(DynamicMessage.Builder protoMsg,
                                                                Record<GenericObject> record,
                                                                Descriptors.Descriptor protoDescriptor,
                                                                List<TableFieldSchema> tableFieldSchema)
-            throws RecordConvertException;
+            throws BQConnectorRecordConvertException;
 
 
     private void convertSystemField(DynamicMessage.Builder protoMsg, Record<GenericObject> record,
@@ -67,20 +64,19 @@ public abstract class AbstractRecordConvert implements RecordConverter {
                     protoMsg.setField(pbField, convert);
                 } catch (Exception e) {
                     log.warn("Not found field <{}> by records, ignore this field", fieldName);
-                    continue;
                 }
             }
         }
     }
 
-    protected DynamicMessage buildMessage(DynamicMessage.Builder protoMsg) throws RecordConvertException {
+    protected DynamicMessage buildMessage(DynamicMessage.Builder protoMsg) throws BQConnectorRecordConvertException {
         try {
             return protoMsg.build();
         } catch (UninitializedMessageException e) {
             String errorMsg = e.getMessage();
             int idxOfColon = errorMsg.indexOf(":");
             String missingFieldName = errorMsg.substring(idxOfColon + 2);
-            throw new RecordConvertException(
+            throw new BQConnectorRecordConvertException(
                     String.format(
                             "Avro does not have the required field %s.%s.", "todo", missingFieldName));
         }

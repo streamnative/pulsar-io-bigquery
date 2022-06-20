@@ -27,7 +27,6 @@ import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableResult;
 import com.google.protobuf.ByteString;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -49,7 +48,7 @@ public class PrimitiveDataConvertTestIntegration {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testFirst() throws IOException, InterruptedException {
+    public void testFirst() throws Exception {
 
         @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder()
@@ -65,7 +64,7 @@ public class PrimitiveDataConvertTestIntegration {
 
     @SuppressWarnings("unchecked")
     private void testPrimitive(String tableName, PulsarClient pulsarClient, PrimitiveTestWrapper primitiveWrapper)
-            throws IOException, InterruptedException {
+            throws Exception {
         // 0. clean bigquery data.
         BigQueryConfig bigQueryConfig = new BigQueryConfig();
         bigQueryConfig.setProjectId("affable-ray-226821");

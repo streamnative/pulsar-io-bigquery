@@ -26,7 +26,6 @@ import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableResult;
-import java.io.IOException;
 import java.util.UUID;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Producer;
@@ -42,7 +41,7 @@ import org.junit.Test;
 public class AvroDataConvertTestIntegration {
 
     @Test
-    public void testFirst() throws IOException, InterruptedException {
+    public void testFirst() throws Exception {
 
         // 0. clean bigquery data.
         BigQueryConfig bigQueryConfig = new BigQueryConfig();
@@ -80,7 +79,7 @@ public class AvroDataConvertTestIntegration {
         assertEquals(10, tableResult.getTotalRows());
         for (FieldValueList fieldValues : tableResult.iterateAll()) {
             assertEquals(pulsarProducerName, fieldValues.get("__producer_name__").getStringValue());
-            assertEquals("test col2", fieldValues.get("col1").getStringValue());
+            assertEquals("test col1", fieldValues.get("col1").getStringValue());
             assertEquals("test col3", fieldValues.get("col3").getStringValue());
         }
     }

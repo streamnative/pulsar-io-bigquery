@@ -20,12 +20,10 @@ package org.apache.pulsar.ecosystem.io.bigquery.convert.record;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
-import java.io.IOException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -45,7 +43,6 @@ import org.apache.pulsar.ecosystem.io.bigquery.PrimitiveRecordsUtils;
 import org.apache.pulsar.ecosystem.io.bigquery.SchemaManager;
 import org.apache.pulsar.ecosystem.io.bigquery.SchemaManagerTest;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.DefaultSystemFieldConvert;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.RecordConvertException;
 import org.apache.pulsar.functions.api.Record;
 import org.junit.Assert;
 import org.junit.Test;
@@ -56,7 +53,7 @@ import org.junit.Test;
 public class PrimitiveRecordConvertTest {
 
     @Test
-    public void convertUserSchema() throws IOException, RecordConvertException {
+    public void convertUserSchema() throws Exception {
         List<PrimitiveTestWrapper> allTypeField = new ArrayList<>();
         allTypeField.add(new PrimitiveTestWrapper<String>(Schema.STRING, "str", "str"));
         allTypeField.add(new PrimitiveTestWrapper<Boolean>(Schema.BOOL, true, true));
@@ -109,9 +106,8 @@ public class PrimitiveRecordConvertTest {
             TableSchema tableSchema = schemaManager.getTableSchema();
             Descriptors.Descriptor descriptor = schemaManager.getDescriptor();
             System.out.println("test :" + primitiveTestWrapper);
-            ProtoRows protoRows = primitiveRecordConvert.convertRecord(record, descriptor, tableSchema.getFieldsList());
-            ByteString serializedRows = protoRows.getSerializedRows(0);
-            DynamicMessage dynamicMessage = DynamicMessage.parseFrom(schemaManager.getDescriptor(), serializedRows);
+            DynamicMessage dynamicMessage =
+                    primitiveRecordConvert.convertRecord(record, descriptor, tableSchema.getFieldsList());
             dynamicMessage.getAllFields().forEach((fieldDescriptor, o) -> {
                 if (fieldDescriptor.getName().equals(DefaultSystemFieldConvert.PRIMITIVE_VALUE_NAME)) {
                     primitiveTestWrapper.assertEquals(o);
@@ -134,6 +130,8 @@ public class PrimitiveRecordConvertTest {
             } else if (recordValue instanceof ByteString) {
                 ByteString byteStr = (ByteString) recordValue;
                 Assert.assertArrayEquals(byteStr.toByteArray(), (byte[]) assertValue);
+            } else if (recordValue instanceof byte[]) {
+                Assert.assertArrayEquals((byte[]) recordValue, (byte[]) assertValue);
             } else {
                 Assert.assertEquals(recordValue, assertValue);
             }

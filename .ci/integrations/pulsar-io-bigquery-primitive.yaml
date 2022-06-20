@@ -17,6 +17,39 @@ configs:
   #
   tableName: "primitive_table"
 
+  # Optional Committed or Pending.
+  # When equal to Pending, it is recommended to increase batchMaxSize and batchMaxTime.
+  # The mode controls when data written to the stream becomes visible in BigQuery for reading.
+  # Refer: https://cloud.google.com/bigquery/docs/write-api#application-created_streams
+  #
+  # This field is optional.
+  #
+  visibleModel: Committed
+
+  # Maximum number of batch messages
+  #
+  # This field is optional.
+  #
+  batchMaxSize: 20
+
+  # Batch max wait time: milliseconds
+  #
+  # This field is optional.
+  #
+  batchMaxTime: 3000
+
+  # Batch trigger flush interval time: milliseconds
+  #
+  # This field is optional.
+  #
+  batchFlushIntervalTime: 2000
+
+  # When append failed, max retry num. Wait 2 seconds for each retry
+  #
+  # This field is optional.
+  #
+  failedMaxRetryNum: 20
+
   # Create a partitioned table when the table is automatically created.
   # It will use __event_time__ the partition key.
   #

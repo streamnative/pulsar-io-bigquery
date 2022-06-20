@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BigQueryConnectorRuntimeException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorSchemaException;
 import org.apache.pulsar.functions.api.Record;
 
 /**
@@ -50,7 +50,7 @@ public class SchemaConvertHandler implements SchemaConvert {
 
         SchemaConvert schemaConvert = schemaConverts.get(type);
         if (schemaConvert == null) {
-            throw new BigQueryConnectorRuntimeException("Not support schema type: " + type);
+            throw new BQConnectorSchemaException("Not support schema type: " + type);
         }
         return schemaConvert.convertSchema(records);
     }

@@ -26,12 +26,10 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import com.google.cloud.bigquery.storage.v1.BigDecimalByteStringEncoder;
-import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +38,7 @@ import org.apache.pulsar.ecosystem.io.bigquery.AvroRecordsUtils;
 import org.apache.pulsar.ecosystem.io.bigquery.BigQueryConfig;
 import org.apache.pulsar.ecosystem.io.bigquery.SchemaManager;
 import org.apache.pulsar.ecosystem.io.bigquery.SchemaManagerTest;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.RecordConvertException;
+import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorRecordConvertException;
 import org.apache.pulsar.functions.api.Record;
 import org.junit.Assert;
 import org.junit.Test;
@@ -52,7 +50,7 @@ public class AvroRecordConverterTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testConvertRecord() throws IOException, RecordConvertException {
+    public void testConvertRecord() throws Exception {
 
         AvroRecordConverter avroRecordConverter = new AvroRecordConverter();
 
@@ -76,10 +74,8 @@ public class AvroRecordConverterTest {
         Descriptors.Descriptor firstDescriptor = schemaManager.getDescriptor();
 
         // first convert success.
-        ProtoRows protoRows =
+        DynamicMessage dynamicMessage =
                 avroRecordConverter.convertRecord(recordRecordFirst, firstDescriptor, firstTableSchema.getFieldsList());
-        ByteString serializedRows = protoRows.getSerializedRows(0);
-        DynamicMessage dynamicMessage = DynamicMessage.parseFrom(schemaManager.getDescriptor(), serializedRows);
         assertEquals(dynamicMessage.getAllFields().size(), 6);
         assertConvertResult(dynamicMessage);
 
@@ -88,7 +84,7 @@ public class AvroRecordConverterTest {
         try {
             avroRecordConverter.convertRecord(recordRecordSecond, firstDescriptor, firstTableSchema.getFieldsList());
             fail("Should has failed");
-        } catch (RecordConvertException e) {
+        } catch (BQConnectorRecordConvertException e) {
         }
     }
 
@@ -105,7 +101,7 @@ public class AvroRecordConverterTest {
                     Assert.assertEquals(1653530376803000L, value);
                     break;
                 case "col1":
-                    Assert.assertEquals("test col2", value);
+                    Assert.assertEquals("test col1", value);
                     break;
                 case "col3":
                     Assert.assertEquals("test col3", value);

@@ -67,7 +67,7 @@ public class AvroRecordsUtils {
         tag.intb = 1653530376803L;
 
         Foo foo = new Foo();
-        foo.setCol1("test col2");
+        foo.setCol1("test col1");
         foo.setCol3("test col3");
         foo.setTag(tag);
         foo.setMap3(map3);
@@ -113,7 +113,7 @@ public class AvroRecordsUtils {
 
             @Override
             public void ack() {
-                System.out.println("ack message");
+                System.out.println("mock ack message");
             }
         };
         return (Record<GenericObject>) record;
@@ -146,8 +146,8 @@ public class AvroRecordsUtils {
         tag.intb = System.currentTimeMillis();
 
         Foo2 foo = new Foo2();
-        foo.setCol1("test col2");
-        foo.setCol4("test col3");
+        foo.setCol1("test col1");
+        foo.setCol4("test col4");
         foo.setTag(tag);
         foo.setMap3(map3);
 
@@ -185,7 +185,7 @@ public class AvroRecordsUtils {
 
             @Override
             public void ack() {
-                System.out.println("ack message");
+                System.out.println("mock ack message");
             }
         };
         return (Record<GenericObject>) record;

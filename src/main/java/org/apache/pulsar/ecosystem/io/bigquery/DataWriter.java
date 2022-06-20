@@ -16,34 +16,46 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.ecosystem.io.bigquery.convert.record;
+package org.apache.pulsar.ecosystem.io.bigquery;
 
-import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
-import com.google.protobuf.Descriptors;
+import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.protobuf.DynamicMessage;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.schema.GenericObject;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorRecordConvertException;
 import org.apache.pulsar.functions.api.Record;
 
 /**
- * record converter.
+ * Data Writer.
  */
-public interface RecordConverter {
+public interface DataWriter extends AutoCloseable {
 
     /**
-     * Converter record.
+     * append message.
      *
-     * @param record pulsar record
-     * @param protoSchema protobuf descriptor
-     * @param tableFieldSchema table field schemas
+     * @param dataWriterRequests
      * @return
-     * @throws BQConnectorRecordConvertException
-     *  1. When there are fields in Pulsar that are not in BigQuery.
-     *  2. When there is a field in BigQuery that is not in Pulsar, and it is set to a required type.
      */
-    DynamicMessage convertRecord(Record<GenericObject> record,
-                                 Descriptors.Descriptor protoSchema,
-                                 List<TableFieldSchema> tableFieldSchema) throws BQConnectorRecordConvertException;
+    CompletableFuture<AppendRowsResponse> append(List<DynamicMessage> dataWriterRequests);
+
+    /**
+     * update resources.
+     */
+    void updateStream(ProtoSchema protoSchema);
+
+    /**
+     * data writer request.
+     */
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    class DataWriterRequest {
+        private DynamicMessage dynamicMessage;
+        private Record<GenericObject> record;
+    }
 
 }
