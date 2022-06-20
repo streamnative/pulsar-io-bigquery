@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.client.api.Message;
@@ -70,7 +71,8 @@ public class DataWriterBatchWrapperTest {
 
         SchemaManager schemaManager = mock(SchemaManager.class);
         DataWriterBatchWrapper dataWriterBatchWrapper = new DataWriterBatchWrapper(dataWriter, schemaManager,
-                5, 10000, 10);
+                5, 10000, 2,
+                10, Executors.newSingleThreadScheduledExecutor());
 
         Record record = new MockRecord(new CountDownLatch(0));
         for (int i = 0; i < 5; i++) {
@@ -111,14 +113,12 @@ public class DataWriterBatchWrapperTest {
 
         SchemaManager schemaManager = mock(SchemaManager.class);
         DataWriterBatchWrapper dataWriterBatchWrapper = new DataWriterBatchWrapper(dataWriter, schemaManager,
-                5, 10000, 10);
+                1, 10000, 2,
+                10, Executors.newSingleThreadScheduledExecutor());
 
-        CountDownLatch countDownLatch = new CountDownLatch(5);
+        CountDownLatch countDownLatch = new CountDownLatch(1);
         MockRecord mockRecord = new MockRecord(countDownLatch);
-        for (int i = 0; i < countDownLatch.getCount(); i++) {
-            dataWriterBatchWrapper.append(new DataWriter.DataWriterRequest(null, mockRecord));
-        }
-
+        dataWriterBatchWrapper.append(new DataWriter.DataWriterRequest(null, mockRecord));
         countDownLatch.await(30000, TimeUnit.MILLISECONDS);
     }
 

@@ -73,7 +73,7 @@ public class BigQueryConfig implements Serializable {
     private VisibleModel visibleModel;
 
     @FieldDoc(required = false,
-            defaultValue = "10",
+            defaultValue = "20",
             help = "Maximum number of batch messages")
     private int batchMaxSize;
 
@@ -81,6 +81,16 @@ public class BigQueryConfig implements Serializable {
             defaultValue = "5000",
             help = "Batch max wait time: milliseconds")
     private int batchMaxTime;
+
+    @FieldDoc(required = false,
+            defaultValue = "2000",
+            help = "Batch trigger flush interval time: milliseconds")
+    private int batchFlushIntervalTime;
+
+    @FieldDoc(required = false,
+            defaultValue = "20",
+            help = "When append failed, max retry num. Wait 2 seconds for each retry")
+    private int failedMaxRetryNum;
 
     @FieldDoc(required = false,
             defaultValue = "false",

@@ -29,6 +29,7 @@ import com.google.protobuf.DynamicMessage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -46,27 +47,58 @@ public class DataWriterBatchWrapper {
     private final DataWriter dataWriter;
     private final int batchMaxSize;
     private final int batchMaxTime;
-    private final int maxRetryNum;
-    private List<DataWriter.DataWriterRequest> batch;
-    private long lastFlushTime;
+    // Maximum number of retries after encountering a retryable exception
+    private final int failedMaxRetryNum;
+    private final List<DataWriter.DataWriterRequest> batch;
+    private final int batchFlushIntervalTime;
     private final SchemaManager schemaManager;
+    private final ScheduledExecutorService scheduledExecutorService;
+    private long lastFlushTime;
+
+    /**
+     * Batch writer wrapper.
+     *
+     * @param dataWriter {@link DataWriter}
+     * @param schemaManager {@link SchemaManager}
+     * @param batchMaxSize Batch max size.
+     * @param batchMaxTime Batch max wait time.
+     * @param batchFlushIntervalTime Batch trigger flush interval time: milliseconds
+     * @param failedMaxRetryNum When append failed, max retry num.
+     * @param scheduledExecutorService Schedule flush thread, this class does not guarantee thread safety,
+     *                                 you need to ensure that the thread calling append is this thread.
+     */
     public DataWriterBatchWrapper(DataWriter dataWriter, SchemaManager schemaManager,
-                                  int batchMaxSize, int batchMaxTime, int maxRetryNum) {
+                                  int batchMaxSize, int batchMaxTime, int batchFlushIntervalTime,
+                                  int failedMaxRetryNum, ScheduledExecutorService scheduledExecutorService) {
         this.dataWriter = dataWriter;
         this.schemaManager = schemaManager;
         this.batchMaxSize = batchMaxSize;
         this.batchMaxTime = batchMaxTime;
-        this.maxRetryNum = maxRetryNum;
-        this.lastFlushTime = System.currentTimeMillis();
+        this.batchFlushIntervalTime = batchFlushIntervalTime;
+        this.failedMaxRetryNum = failedMaxRetryNum;
+        this.scheduledExecutorService = scheduledExecutorService;
         this.batch = new ArrayList<>(batchMaxSize);
     }
 
+    /**
+     * start scheduled trigger flush timeout data.
+     */
+    public void init() {
+        this.lastFlushTime = System.currentTimeMillis();
+        log.info("Start timed trigger refresh service, batchMaxSize:[{}], "
+                + "batchMaxTime:[{}] batchFlushIntervalTime:[{}]", batchMaxSize, batchMaxTime, batchFlushIntervalTime);
+        this.scheduledExecutorService.scheduleAtFixedRate(() -> tryFlush(),
+                batchFlushIntervalTime, batchFlushIntervalTime, TimeUnit.MILLISECONDS);
+    }
+
     public void append(DataWriter.DataWriterRequest dataWriterRequests) {
-        if (dataWriterRequests != null) {
-            batch.add(dataWriterRequests);
-        }
-        long currentTimeMillis = System.currentTimeMillis();
-        if (batch.size() > 1 && (currentTimeMillis - lastFlushTime > batchMaxTime || batch.size() >= batchMaxSize)) {
+        batch.add(dataWriterRequests);
+        tryFlush();
+    }
+
+    private void tryFlush() {
+        if (batch.size() > 0
+                && (batch.size() >= batchMaxSize || System.currentTimeMillis() - lastFlushTime > batchMaxTime)) {
             log.info("flush size {}", batch.size());
             List<DynamicMessage> dynamicMessages = batch.stream()
                     .map(dataWriterRequest -> dataWriterRequest.getDynamicMessage())
@@ -96,8 +128,9 @@ public class DataWriterBatchWrapper {
 
             if (exception == null) {
                 break;
-            } else if (retryCount >= 10) {
-                throw new BQConnectorDirectFailException("Append failed try 10 count still failed.", exception);
+            } else if (retryCount >= failedMaxRetryNum) {
+                throw new BQConnectorDirectFailException(
+                        String.format("Append failed try %s count still failed.", failedMaxRetryNum), exception);
             } else if (exception instanceof NotFoundException) {
                 log.warn("Happen exception <{}>,retry to after update schema", exception.getMessage());
                 List<Record<GenericObject>> records =

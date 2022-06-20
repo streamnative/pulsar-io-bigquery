@@ -25,7 +25,6 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.convert.record.RecordConverter;
@@ -56,7 +55,7 @@ public class BigQuerySink implements Sink<GenericObject> {
     private ScheduledExecutorService scheduledExecutorService;
 
     @Override
-    public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
+    public void open(Map<String, Object> config, SinkContext sinkContext) {
         this.bigQueryConfig = BigQueryConfig.load(config, sinkContext);
         Objects.requireNonNull(bigQueryConfig.getProjectId(), "BigQuery project id is not set");
         Objects.requireNonNull(bigQueryConfig.getDatasetName(), "BigQuery dataset id is not set");
@@ -78,12 +77,14 @@ public class BigQuerySink implements Sink<GenericObject> {
                     + ", support Committed or Pending");
         }
         this.dataWriterBatch = new DataWriterBatchWrapper(dataWriter, schemaManager,
-                bigQueryConfig.getBatchMaxSize(), bigQueryConfig.getBatchMaxTime(), 10);
+                bigQueryConfig.getBatchMaxSize(), bigQueryConfig.getBatchMaxTime(),
+                bigQueryConfig.getBatchFlushIntervalTime(), bigQueryConfig.getFailedMaxRetryNum(),
+                scheduledExecutorService);
     }
 
     @Override
     public void write(Record<GenericObject> record) throws Exception {
-        useInnerThreadHandle(record).get();
+        useInnerThreadHandle(record);
     }
 
     /**
@@ -92,14 +93,13 @@ public class BigQuerySink implements Sink<GenericObject> {
      * @param record
      * @return
      */
-    private CompletableFuture<Void> useInnerThreadHandle(Record<GenericObject> record) {
-        return CompletableFuture.runAsync(() -> {
+    private void useInnerThreadHandle(Record<GenericObject> record) throws Exception {
+        CompletableFuture.runAsync(() -> {
             // 0. Try to create table and init bigquery resources
             if (!init) {
                 schemaManager.initTable(record);
                 dataWriterBatch.updateStream(schemaManager.getProtoSchema());
-                this.scheduledExecutorService.scheduleAtFixedRate(() -> dataWriterBatch.append(null),
-                        5, 5, TimeUnit.SECONDS);
+                dataWriterBatch.init();
                 init = true;
             }
 
@@ -109,7 +109,7 @@ public class BigQuerySink implements Sink<GenericObject> {
             // 2. append msg.
             dataWriterBatch.append(new DataWriter.DataWriterRequest(msg, record));
 
-        }, scheduledExecutorService);
+        }, scheduledExecutorService).get();
     }
 
     private DynamicMessage convertRecord(Record<GenericObject> record) {
