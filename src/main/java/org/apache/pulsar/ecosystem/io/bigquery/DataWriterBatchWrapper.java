@@ -18,15 +18,13 @@
  */
 package org.apache.pulsar.ecosystem.io.bigquery;
 
-import com.google.api.gax.rpc.InternalException;
-import com.google.api.gax.rpc.NotFoundException;
-import com.google.api.gax.rpc.PermissionDeniedException;
-import com.google.api.gax.rpc.ResourceExhaustedException;
-import com.google.api.gax.rpc.UnavailableException;
-import com.google.api.gax.rpc.UnknownException;
+import com.google.api.gax.rpc.ApiException;
+import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.DynamicMessage;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -37,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.SinkContext;
 
 /**
  * Temporarily used as a wrapper for batch processing,
@@ -55,22 +54,26 @@ public class DataWriterBatchWrapper {
     private final SchemaManager schemaManager;
     private final ScheduledExecutorService scheduledExecutorService;
     private long lastFlushTime;
+    private final SinkContext sinkContext;
+
 
     /**
      * Batch writer wrapper.
      *
-     * @param dataWriter {@link DataWriter}
-     * @param schemaManager {@link SchemaManager}
-     * @param batchMaxSize Batch max size.
-     * @param batchMaxTime Batch max wait time.
-     * @param batchFlushIntervalTime Batch trigger flush interval time: milliseconds
-     * @param failedMaxRetryNum When append failed, max retry num.
+     * @param dataWriter               {@link DataWriter}
+     * @param schemaManager            {@link SchemaManager}
+     * @param batchMaxSize             Batch max size.
+     * @param batchMaxTime             Batch max wait time.
+     * @param batchFlushIntervalTime   Batch trigger flush interval time: milliseconds
+     * @param failedMaxRetryNum        When append failed, max retry num.
      * @param scheduledExecutorService Schedule flush thread, this class does not guarantee thread safety,
      *                                 you need to ensure that the thread calling append is this thread.
+     * @param sinkContext
      */
     public DataWriterBatchWrapper(DataWriter dataWriter, SchemaManager schemaManager,
                                   int batchMaxSize, int batchMaxTime, int batchFlushIntervalTime,
-                                  int failedMaxRetryNum, ScheduledExecutorService scheduledExecutorService) {
+                                  int failedMaxRetryNum, ScheduledExecutorService scheduledExecutorService,
+                                  SinkContext sinkContext) {
         this.dataWriter = dataWriter;
         this.schemaManager = schemaManager;
         this.batchMaxSize = batchMaxSize;
@@ -79,6 +82,7 @@ public class DataWriterBatchWrapper {
         this.failedMaxRetryNum = failedMaxRetryNum;
         this.scheduledExecutorService = scheduledExecutorService;
         this.batch = new ArrayList<>(batchMaxSize);
+        this.sinkContext = sinkContext;
     }
 
     /**
@@ -87,13 +91,14 @@ public class DataWriterBatchWrapper {
     public void init() {
         this.lastFlushTime = System.currentTimeMillis();
         log.info("Start timed trigger refresh service, batchMaxSize:[{}], "
-                + "batchMaxTime:[{}] batchFlushIntervalTime:[{}] failedMaxRetryNum:[{}]",
+                        + "batchMaxTime:[{}] batchFlushIntervalTime:[{}] failedMaxRetryNum:[{}]",
                 batchMaxSize, batchMaxTime, batchFlushIntervalTime, failedMaxRetryNum);
         this.scheduledExecutorService.scheduleAtFixedRate(() -> tryFlush(),
                 batchFlushIntervalTime, batchFlushIntervalTime, TimeUnit.MILLISECONDS);
     }
 
     public void append(DataWriter.DataWriterRequest dataWriterRequests) {
+        sinkContext.recordMetric(MetricContent.RECEIVE_COUNT, batch.size());
         batch.add(dataWriterRequests);
         tryFlush();
     }
@@ -110,6 +115,7 @@ public class DataWriterBatchWrapper {
                 dataWriterRequest.getRecord().ack();
                 log.info("Append success, ack this message <{}>",
                         dataWriterRequest.getRecord().getMessage().get().getMessageId());
+                sinkContext.recordMetric(MetricContent.ACK_COUNT, 1);
             }
             batch.clear();
             lastFlushTime = System.currentTimeMillis();
@@ -124,8 +130,22 @@ public class DataWriterBatchWrapper {
                 dataWriter.append(dynamicMessages).get(10, TimeUnit.SECONDS);
             } catch (ExecutionException e) {
                 exception = e.getCause();
+                sinkContext.recordMetric(MetricContent.FAIL_COUNT, 1);
             } catch (Exception e) {
                 exception = e;
+                sinkContext.recordMetric(MetricContent.FAIL_COUNT, 1);
+            }
+
+            // Merge two exception states
+            Status.Code errorCode = null;
+            if (exception instanceof StatusRuntimeException) {
+                StatusRuntimeException statusRuntimeException = (StatusRuntimeException) exception;
+                errorCode = statusRuntimeException.getStatus().getCode();
+            }
+            if (exception instanceof ApiException) {
+                ApiException apiException = (ApiException) exception;
+                StatusCode statusCode = apiException.getStatusCode();
+                errorCode = (Status.Code) statusCode.getTransportCode();
             }
 
             if (exception == null) {
@@ -133,27 +153,44 @@ public class DataWriterBatchWrapper {
             } else if (retryCount >= failedMaxRetryNum) {
                 throw new BQConnectorDirectFailException(
                         String.format("Append failed try %s count still failed.", failedMaxRetryNum), exception);
-            } else if (exception instanceof NotFoundException || exception instanceof PermissionDeniedException) {
-                log.warn("Happen exception <{}>,retry to after update schema", exception.getMessage());
-                List<Record<GenericObject>> records =
-                        batch.stream().map(dataWriterRequest -> dataWriterRequest.getRecord())
-                                .collect(Collectors.toList());
-                schemaManager.updateSchema(records);
-                updateStream(schemaManager.getProtoSchema());
-                retryCount++;
-            } else if (exception instanceof InternalException
-                    || exception instanceof UnknownException
-                    || exception instanceof UnavailableException
-                    || exception instanceof ResourceExhaustedException) {
-                // Exceptions that can be retried trying to recover.
-                retryCount++;
-                Uninterruptibles.sleepUninterruptibly(2, TimeUnit.SECONDS);
-                log.warn("Happen exception <{}>, retry to after 2 seconds", exception.getMessage());
+            } else if (errorCode != null) {
+                switch (errorCode) {
+                    case NOT_FOUND:
+                    case PERMISSION_DENIED:
+                        log.warn("RetryCount [{}] Happen exception <{}>,retry to after update schema",
+                                retryCount, exception.getMessage());
+                        List<Record<GenericObject>> records =
+                                batch.stream().map(dataWriterRequest -> dataWriterRequest.getRecord())
+                                        .collect(Collectors.toList());
+                        schemaManager.updateSchema(records);
+                        updateStream(schemaManager.getProtoSchema());
+                        retryCount++;
+                        sinkContext.recordMetric(MetricContent.UPDATE_SCHEMA_COUNT, 1);
+                        break;
+                    case INTERNAL:
+                    case UNKNOWN:
+                    case UNAVAILABLE:
+                    case ABORTED:
+                    case RESOURCE_EXHAUSTED:
+                        // Exceptions that can be retried trying to recover.
+                        retryCount++;
+                        Uninterruptibles.sleepUninterruptibly(2, TimeUnit.SECONDS);
+                        log.warn("RetryCount [{}] Happen exception <{}>, retry to after 2 seconds",
+                                retryCount, exception.getMessage());
+                        break;
+                    default:
+                        throw new BQConnectorDirectFailException("Encountered an unrecoverable exception, "
+                                + "please check the error code for help from the documentation: "
+                                + "https://cloud.google.com/bigquery/docs/error-messages", exception);
+                }
             } else {
                 throw new BQConnectorDirectFailException("Encountered an unrecoverable exception, "
                         + "please check the error code for help from the documentation: "
                         + "https://cloud.google.com/bigquery/docs/error-messages", exception);
             }
+        }
+        for (int i = 0; i < retryCount; i++) {
+            sinkContext.recordMetric(MetricContent.RETRY_COUNT, 1);
         }
     }
 

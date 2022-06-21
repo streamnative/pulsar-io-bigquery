@@ -54,6 +54,8 @@ public class BigQuerySink implements Sink<GenericObject> {
     // All operations inside bigquery are handled by this separate thread
     private ScheduledExecutorService scheduledExecutorService;
 
+    private SinkContext sinkContext;
+
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) {
         this.bigQueryConfig = BigQueryConfig.load(config, sinkContext);
@@ -79,7 +81,8 @@ public class BigQuerySink implements Sink<GenericObject> {
         this.dataWriterBatch = new DataWriterBatchWrapper(dataWriter, schemaManager,
                 bigQueryConfig.getBatchMaxSize(), bigQueryConfig.getBatchMaxTime(),
                 bigQueryConfig.getBatchFlushIntervalTime(), bigQueryConfig.getFailedMaxRetryNum(),
-                scheduledExecutorService);
+                scheduledExecutorService, sinkContext);
+        this.sinkContext = sinkContext;
     }
 
     @Override
@@ -123,6 +126,7 @@ public class BigQuerySink implements Sink<GenericObject> {
                 schemaManager.updateSchema(record);
                 // Bigquery resource update is delayed, try a few more times.
                 dataWriterBatch.updateStream(schemaManager.getProtoSchema());
+                sinkContext.recordMetric(MetricContent.UPDATE_SCHEMA_COUNT, 1);
                 return recordConverter.convertRecord(record, schemaManager.getDescriptor(),
                         schemaManager.getTableSchema().getFieldsList());
             } catch (Exception ex) {
