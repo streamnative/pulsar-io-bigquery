@@ -20,6 +20,7 @@ package org.apache.pulsar.ecosystem.io.bigquery;
 
 import com.google.api.gax.rpc.InternalException;
 import com.google.api.gax.rpc.NotFoundException;
+import com.google.api.gax.rpc.PermissionDeniedException;
 import com.google.api.gax.rpc.ResourceExhaustedException;
 import com.google.api.gax.rpc.UnavailableException;
 import com.google.api.gax.rpc.UnknownException;
@@ -86,7 +87,8 @@ public class DataWriterBatchWrapper {
     public void init() {
         this.lastFlushTime = System.currentTimeMillis();
         log.info("Start timed trigger refresh service, batchMaxSize:[{}], "
-                + "batchMaxTime:[{}] batchFlushIntervalTime:[{}]", batchMaxSize, batchMaxTime, batchFlushIntervalTime);
+                + "batchMaxTime:[{}] batchFlushIntervalTime:[{}] failedMaxRetryNum:[{}]",
+                batchMaxSize, batchMaxTime, batchFlushIntervalTime, failedMaxRetryNum);
         this.scheduledExecutorService.scheduleAtFixedRate(() -> tryFlush(),
                 batchFlushIntervalTime, batchFlushIntervalTime, TimeUnit.MILLISECONDS);
     }
@@ -131,7 +133,7 @@ public class DataWriterBatchWrapper {
             } else if (retryCount >= failedMaxRetryNum) {
                 throw new BQConnectorDirectFailException(
                         String.format("Append failed try %s count still failed.", failedMaxRetryNum), exception);
-            } else if (exception instanceof NotFoundException) {
+            } else if (exception instanceof NotFoundException || exception instanceof PermissionDeniedException) {
                 log.warn("Happen exception <{}>,retry to after update schema", exception.getMessage());
                 List<Record<GenericObject>> records =
                         batch.stream().map(dataWriterRequest -> dataWriterRequest.getRecord())
