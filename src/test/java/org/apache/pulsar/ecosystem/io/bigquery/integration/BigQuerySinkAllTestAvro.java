@@ -24,6 +24,8 @@ import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.AvroRecordsUtils;
 import org.apache.pulsar.ecosystem.io.bigquery.BigQuerySink;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.SinkContext;
+import org.mockito.Mockito;
 
 /**
  * Big query all test. Just use the local debug test.
@@ -50,14 +52,13 @@ public class BigQuerySinkAllTestAvro {
         sinkConfig.put("partitionedTableIntervalDay", 10);
         sinkConfig.put("defaultSystemField", "__event_time__");
         sinkConfig.put("visibleModel", "Committed");
-        bigQuerySink.open(sinkConfig, null);
+        sinkConfig.put("batchMaxSize", "20");
+        sinkConfig.put("batchMaxTime", "5000");
+        sinkConfig.put("batchFlushIntervalTime", "2");
+        sinkConfig.put("failedMaxRetryNum", "10");
+        bigQuerySink.open(sinkConfig, Mockito.mock(SinkContext.class));
 
-        Record<GenericObject> genericRecordRecordFirst = AvroRecordsUtils.getGenericRecordRecordFirst();
-        bigQuerySink.write(genericRecordRecordFirst);
-
-        Thread.sleep(1000);
-
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 100000; i++) {
             Record<GenericObject> genericRecordRecordSecond = AvroRecordsUtils.getGenericRecordRecordSecond();
             bigQuerySink.write(genericRecordRecordSecond);
         }

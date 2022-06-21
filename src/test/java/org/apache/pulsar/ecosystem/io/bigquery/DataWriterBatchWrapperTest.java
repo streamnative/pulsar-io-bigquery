@@ -35,13 +35,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.SinkContext;
+import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -72,7 +76,7 @@ public class DataWriterBatchWrapperTest {
         SchemaManager schemaManager = mock(SchemaManager.class);
         DataWriterBatchWrapper dataWriterBatchWrapper = new DataWriterBatchWrapper(dataWriter, schemaManager,
                 5, 10000, 2,
-                10, Executors.newSingleThreadScheduledExecutor());
+                10, Executors.newSingleThreadScheduledExecutor(), Mockito.mock(SinkContext.class));
 
         Record record = new MockRecord(new CountDownLatch(0));
         for (int i = 0; i < 5; i++) {
@@ -114,12 +118,45 @@ public class DataWriterBatchWrapperTest {
         SchemaManager schemaManager = mock(SchemaManager.class);
         DataWriterBatchWrapper dataWriterBatchWrapper = new DataWriterBatchWrapper(dataWriter, schemaManager,
                 1, 10000, 2,
-                10, Executors.newSingleThreadScheduledExecutor());
+                10, Executors.newSingleThreadScheduledExecutor(), Mockito.mock(SinkContext.class));
 
         CountDownLatch countDownLatch = new CountDownLatch(1);
         MockRecord mockRecord = new MockRecord(countDownLatch);
         dataWriterBatchWrapper.append(new DataWriter.DataWriterRequest(null, mockRecord));
         countDownLatch.await(30000, TimeUnit.MILLISECONDS);
+    }
+
+    @Test()
+    @SuppressWarnings("unchecked")
+    public void testBatchThread() throws InterruptedException, ExecutionException {
+        DataWriter dataWriter = mock(DataWriter.class);
+        AtomicInteger appendCount = new AtomicInteger();
+        when(dataWriter.append(Mockito.any(List.class))).then(param -> {
+            Object[] arguments = param.getArguments();
+            List list = (List) arguments[0];
+            appendCount.addAndGet(list.size());
+            Thread.sleep(10);
+            CompletableFuture<AppendRowsResponse> completableFuture = new CompletableFuture<>();
+            completableFuture.complete(AppendRowsResponse.newBuilder().build());
+            return completableFuture;
+        });
+
+        ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+        SchemaManager schemaManager = mock(SchemaManager.class);
+        DataWriterBatchWrapper dataWriterBatchWrapper = new DataWriterBatchWrapper(dataWriter, schemaManager,
+                20, 1000, 2,
+                10, scheduledExecutorService, Mockito.mock(SinkContext.class));
+        dataWriterBatchWrapper.init();
+
+        Record record = new MockRecord(new CountDownLatch(0));
+        int num = 10000;
+        for (int i = 0; i < num; i++) {
+            CompletableFuture.runAsync(
+                    () -> dataWriterBatchWrapper.append(new DataWriter.DataWriterRequest(null, record)),
+                    scheduledExecutorService).get();
+        }
+        Thread.sleep(5000);
+        Assert.assertEquals(appendCount.get(), num);
     }
 
     @SuppressWarnings("unchecked")
