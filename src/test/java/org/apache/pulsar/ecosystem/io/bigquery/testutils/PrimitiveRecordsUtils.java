@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.ecosystem.io.bigquery;
+package org.apache.pulsar.ecosystem.io.bigquery.testutils;
 
 import java.util.Optional;
 import org.apache.pulsar.client.api.Message;

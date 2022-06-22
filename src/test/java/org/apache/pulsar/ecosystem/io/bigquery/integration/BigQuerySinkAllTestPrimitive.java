@@ -36,7 +36,7 @@ import lombok.ToString;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.ecosystem.io.bigquery.BigQuerySink;
-import org.apache.pulsar.ecosystem.io.bigquery.PrimitiveRecordsUtils;
+import org.apache.pulsar.ecosystem.io.bigquery.testutils.PrimitiveRecordsUtils;
 import org.apache.pulsar.functions.api.Record;
 
 /**
