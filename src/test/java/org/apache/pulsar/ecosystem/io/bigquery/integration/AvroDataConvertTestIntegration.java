@@ -31,8 +31,8 @@ import lombok.Cleanup;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.ecosystem.io.bigquery.AvroRecordsUtils;
 import org.apache.pulsar.ecosystem.io.bigquery.BigQueryConfig;
+import org.apache.pulsar.ecosystem.io.bigquery.testutils.AvroRecordsUtils;
 import org.junit.Test;
 
 /**
