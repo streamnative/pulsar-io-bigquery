@@ -56,6 +56,23 @@ public class BigQuerySink implements Sink<GenericObject> {
 
     private SinkContext sinkContext;
 
+    public BigQuerySink() {
+    }
+
+    /**
+     * Only use by unit test.
+     */
+    protected BigQuerySink(DataWriterBatchWrapper dataWriterBatch, RecordConverter recordConverter,
+                        BigQueryConfig bigQueryConfig, SchemaManager schemaManager, SinkContext sinkContext) {
+        this.dataWriterBatch = dataWriterBatch;
+        this.recordConverter = recordConverter;
+        this.bigQueryConfig = bigQueryConfig;
+        this.schemaManager = schemaManager;
+        this.scheduledExecutorService =
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("bigquery-sink"));
+        this.sinkContext = sinkContext;
+    }
+
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) {
         this.bigQueryConfig = BigQueryConfig.load(config, sinkContext);
