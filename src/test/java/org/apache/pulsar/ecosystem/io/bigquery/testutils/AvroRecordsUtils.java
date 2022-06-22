@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.ecosystem.io.bigquery;
+package org.apache.pulsar.ecosystem.io.bigquery.testutils;
 
 import java.math.BigDecimal;
 import java.util.Arrays;

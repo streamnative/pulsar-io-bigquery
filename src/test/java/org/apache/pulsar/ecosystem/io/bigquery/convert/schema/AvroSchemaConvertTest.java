@@ -27,7 +27,7 @@ import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Schema;
 import com.google.common.collect.Sets;
 import org.apache.pulsar.client.api.schema.GenericObject;
-import org.apache.pulsar.ecosystem.io.bigquery.AvroRecordsUtils;
+import org.apache.pulsar.ecosystem.io.bigquery.testutils.AvroRecordsUtils;
 import org.apache.pulsar.functions.api.Record;
 import org.junit.Test;
 
