@@ -15,5 +15,5 @@ ASSETS_DIR=release
 mkdir $ASSETS_DIR
 
 mvn clean install -DskipTests
-mv target/pulsar-io-cloud-storage-*.nar  ./$ASSETS_DIR
-cp README.md ./$ASSETS_DIR/pulsar-io-cloud-storage-readme.md
+mv target/pulsar-io-bigquery-*.jar  ./$ASSETS_DIR
+cp README.md ./$ASSETS_DIR/pulsar-io-bigquery.md
