@@ -140,7 +140,7 @@ You can maintain documentation using the same tools and processes that used to m
 
     > **Tip**
     >
-    > - To reduce maintenance costs, use a variable (for example, `{{connector:version}}`) instead of writing the specific connector version. In this way, the corresponding connector version is generated and shown automatically along with each connector release. 
+    > - To reduce maintenance costs, use a variable (for example, `2.10.0.7`) instead of writing the specific connector version. In this way, the corresponding connector version is generated and shown automatically along with each connector release. 
     >
     > - To ensure consistency throughout all connector documentation, it is recommended to follow the [Google Developer Documentation Style Guide](https://developers.google.com/style).
 
