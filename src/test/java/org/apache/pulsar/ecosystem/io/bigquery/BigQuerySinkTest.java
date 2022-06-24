@@ -63,7 +63,6 @@ public class BigQuerySinkTest {
 
         Mockito.verify(schemaManager, times(1)).initTable(record);
         Mockito.verify(schemaManager, times(1)).updateSchema(record);
-        Mockito.verify(dataWriterBatchWrapper, times(1)).init();
         Mockito.verify(dataWriterBatchWrapper, times(2)).updateStream(Mockito.any());
         Mockito.verify(dataWriterBatchWrapper, times(1)).append(Mockito.any());
         Mockito.verify(recordConverter, times(2)).convertRecord(Mockito.any(),

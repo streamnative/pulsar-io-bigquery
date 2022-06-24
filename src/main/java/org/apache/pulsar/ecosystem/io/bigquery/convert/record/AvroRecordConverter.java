@@ -77,7 +77,9 @@ public class AvroRecordConverter extends AbstractRecordConvert {
                 avroFieldSchema = pickSchema(avroSchema.getField(fieldName).schema());
             } catch (Exception e) {
                 if (!DefaultSystemFieldConvert.isSystemField(fieldName)) {
-                    log.warn("Not found field <{}> by avro data, ignore this field", fieldName);
+                    if (log.isDebugEnabled()) {
+                        log.debug("Not found field <{}> by avro data, ignore this field", fieldName);
+                    }
                 }
                 continue;
             }
@@ -182,8 +184,10 @@ public class AvroRecordConverter extends AbstractRecordConvert {
                     }
                     break;
             }
-            log.warn("Not support type <{}> valueClass <{}>, ignore this failed<{}>",
-                                                             type, value.getClass(), avroFieldSchema.getName());
+            if (log.isDebugEnabled()) {
+                log.debug("Not support type <{}> valueClass <{}>, ignore this field<{}>",
+                        type, value.getClass(), avroFieldSchema.getName());
+            }
         }
     }
 

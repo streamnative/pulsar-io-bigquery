@@ -45,6 +45,12 @@ configs:
   #
   visibleModel: Committed
 
+  # Maximum number of messages waiting to be committed in pending visibility mode
+  #
+  # This field is optional.
+  #
+  pendingMaxSize: 10000
+
   # Maximum number of batch messages
   #
   # This field is optional.

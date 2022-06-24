@@ -20,33 +20,9 @@ package org.apache.pulsar.ecosystem.io.bigquery;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.powermock.api.mockito.PowerMockito.when;
-import com.google.api.gax.grpc.GrpcStatusCode;
-import com.google.api.gax.rpc.ApiException;
-import com.google.api.gax.rpc.InternalException;
-import com.google.api.gax.rpc.NotFoundException;
-import com.google.api.gax.rpc.ResourceExhaustedException;
-import com.google.api.gax.rpc.UnavailableException;
-import com.google.api.gax.rpc.UnknownException;
-import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
-import io.grpc.Status;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
+import java.util.Arrays;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.schema.GenericObject;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
-import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
-import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -55,174 +31,38 @@ import org.mockito.Mockito;
  */
 public class DataWriterBatchWrapperTest {
 
-    @Test(timeout = 5000)
-    @SuppressWarnings("unchecked")
-    public void testAppendUpdateSchema() throws InterruptedException {
+    @Test
+    public void testAppendMaxSize() {
 
         DataWriter dataWriter = mock(DataWriter.class);
-
-        AtomicInteger appendCount = new AtomicInteger();
-        when(dataWriter.append(Mockito.any())).then(__ -> {
-            CompletableFuture<AppendRowsResponse> completableFuture = new CompletableFuture<>();
-            if (appendCount.get() == 0) {
-                appendCount.getAndIncrement();
-                completableFuture.completeExceptionally(
-                        new NotFoundException(new RuntimeException(), GrpcStatusCode.of(Status.Code.NOT_FOUND), true));
-            } else {
-                completableFuture.complete(AppendRowsResponse.newBuilder().build());
-            }
-            return completableFuture;
-        });
 
         int messageNum = 5;
-        SchemaManager schemaManager = mock(SchemaManager.class);
-        DataWriterBatchWrapper dataWriterBatchWrapper = new DataWriterBatchWrapper(dataWriter, schemaManager,
-                messageNum, 10000, 20000,
-                10, Executors.newSingleThreadScheduledExecutor(), Mockito.mock(SinkContext.class));
-        dataWriterBatchWrapper.init();
+        DataWriterBatchWrapper dataWriterBatchWrapper = new DataWriterBatchWrapper(dataWriter, messageNum,
+                10000, 20000,
+                Executors.newSingleThreadScheduledExecutor(), Mockito.mock(SinkContext.class));
 
-        CountDownLatch countDownLatch = new CountDownLatch(messageNum);
-        Record record = new MockRecord(countDownLatch);
         for (int i = 0; i < messageNum; i++) {
-            dataWriterBatchWrapper.append(new DataWriter.DataWriterRequest(null, record));
+            dataWriterBatchWrapper.append(Arrays.asList(new DataWriter.DataWriterRequest(null, null)));
         }
 
-        verify(dataWriter, Mockito.times(1)).updateStream(Mockito.any());
-        verify(schemaManager, Mockito.times(1)).updateSchema(Mockito.any(List.class));
-        countDownLatch.await(10, TimeUnit.SECONDS);
+        verify(dataWriter, Mockito.times(1)).append(Mockito.any());
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    public void testAppendException() {
+    public void testAppendMaxTime() throws InterruptedException {
 
         DataWriter dataWriter = mock(DataWriter.class);
 
-        when(dataWriter.append(Mockito.any())).then(__ -> {
-            CompletableFuture<AppendRowsResponse> completableFuture = new CompletableFuture<>();
-            completableFuture.completeExceptionally(
-                    new RuntimeException("Mock run time exception"));
-            return completableFuture;
-        });
+        int messageNum = 5;
+        DataWriterBatchWrapper dataWriterBatchWrapper = new DataWriterBatchWrapper(dataWriter, 10000,
+                1000, 100,
+                Executors.newSingleThreadScheduledExecutor(), Mockito.mock(SinkContext.class));
 
-        SchemaManager schemaManager = mock(SchemaManager.class);
-        DataWriterBatchWrapper dataWriterBatchWrapper = new DataWriterBatchWrapper(dataWriter, schemaManager,
-                5, 10000, 20000,
-                10, Executors.newSingleThreadScheduledExecutor(), Mockito.mock(SinkContext.class));
-
-        CountDownLatch countDownLatch = new CountDownLatch(1);
-        Record record = new MockRecord(countDownLatch);
-        try {
-            dataWriterBatchWrapper.append(new DataWriter.DataWriterRequest(null, record));
-            Assert.fail("Should is exception");
-        } catch (Exception e) {
-            Assert.assertTrue(e instanceof BQConnectorDirectFailException);
-            Assert.assertEquals(countDownLatch.getCount(), 1);
-        }
-    }
-
-    @Test(timeout = 20000)
-    @SuppressWarnings("unchecked")
-    public void testAppendRetry() throws InterruptedException {
-
-        DataWriter dataWriter = mock(DataWriter.class);
-
-        List<ApiException> mockException = new ArrayList<>();
-        mockException.add(new InternalException(
-                new RuntimeException(), GrpcStatusCode.of(Status.Code.INTERNAL), true));
-        mockException.add(new UnknownException(
-                new RuntimeException(), GrpcStatusCode.of(Status.Code.UNKNOWN), true));
-        mockException.add(new UnavailableException(
-                new RuntimeException(), GrpcStatusCode.of(Status.Code.UNAVAILABLE), true));
-        mockException.add(new ResourceExhaustedException(
-                new RuntimeException(), GrpcStatusCode.of(Status.Code.RESOURCE_EXHAUSTED), true));
-
-        AtomicInteger appendCount = new AtomicInteger();
-        when(dataWriter.append(Mockito.any())).then(__ -> {
-            CompletableFuture<AppendRowsResponse> completableFuture = new CompletableFuture<>();
-            if (appendCount.get() < mockException.size()) {
-                completableFuture.completeExceptionally(mockException.get(appendCount.get()));
-                appendCount.getAndIncrement();
-            } else {
-                completableFuture.complete(AppendRowsResponse.newBuilder().build());
-            }
-            return completableFuture;
-        });
-
-        SchemaManager schemaManager = mock(SchemaManager.class);
-        DataWriterBatchWrapper dataWriterBatchWrapper = new DataWriterBatchWrapper(dataWriter, schemaManager,
-                1, 10000, 20000,
-                10, Executors.newSingleThreadScheduledExecutor(), Mockito.mock(SinkContext.class));
-
-        CountDownLatch countDownLatch = new CountDownLatch(1);
-        MockRecord mockRecord = new MockRecord(countDownLatch);
-        dataWriterBatchWrapper.append(new DataWriter.DataWriterRequest(null, mockRecord));
-        countDownLatch.await(30000, TimeUnit.MILLISECONDS);
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
-    public void testBatchThreadTrigger() throws InterruptedException, ExecutionException {
-        DataWriter dataWriter = mock(DataWriter.class);
-        AtomicInteger appendCount = new AtomicInteger();
-        when(dataWriter.append(Mockito.any(List.class))).then(param -> {
-            Object[] arguments = param.getArguments();
-            List list = (List) arguments[0];
-            appendCount.addAndGet(list.size());
-            Thread.sleep(10);
-            CompletableFuture<AppendRowsResponse> completableFuture = new CompletableFuture<>();
-            completableFuture.complete(AppendRowsResponse.newBuilder().build());
-            return completableFuture;
-        });
-
-        ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-        SchemaManager schemaManager = mock(SchemaManager.class);
-        DataWriterBatchWrapper dataWriterBatchWrapper = new DataWriterBatchWrapper(dataWriter, schemaManager,
-                20, 1000, 2000,
-                10, scheduledExecutorService, Mockito.mock(SinkContext.class));
-        dataWriterBatchWrapper.init();
-
-        Record record = new MockRecord(new CountDownLatch(0));
-        int num = 10000;
-        for (int i = 0; i < num; i++) {
-            CompletableFuture.runAsync(
-                    () -> dataWriterBatchWrapper.append(new DataWriter.DataWriterRequest(null, record)),
-                    scheduledExecutorService).get();
-        }
-        Thread.sleep(5000);
-        Assert.assertEquals(appendCount.get(), num);
-    }
-
-    @SuppressWarnings("unchecked")
-    class MockRecord implements Record<GenericObject> {
-
-        private CountDownLatch countDownLatch;
-
-        private Message message;
-
-        public MockRecord(CountDownLatch countDownLatch) {
-            this.countDownLatch = countDownLatch;
-            MessageId messageId = Mockito.mock(MessageId.class);
-            Mockito.when(messageId.toString()).thenReturn("1:1:123");
-            message = Mockito.mock(Message.class);
-            Mockito.when(message.getMessageId()).thenReturn(messageId);
+        for (int i = 0; i < messageNum; i++) {
+            dataWriterBatchWrapper.append(Arrays.asList(new DataWriter.DataWriterRequest(null, null)));
         }
 
-        @Override
-        public GenericObject getValue() {
-            return null;
-        }
-
-        @Override
-        public Optional<Message<GenericObject>> getMessage() {
-            return Optional.of(message);
-        }
-
-        @Override
-        public void ack() {
-            System.out.println("ack message: " + countDownLatch.getCount());
-            countDownLatch.countDown();
-        }
-
+        Thread.sleep(3000);
+        verify(dataWriter, Mockito.times(1)).append(Mockito.any());
     }
 }

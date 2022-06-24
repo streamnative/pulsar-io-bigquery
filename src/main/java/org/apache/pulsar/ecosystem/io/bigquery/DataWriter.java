@@ -18,11 +18,9 @@
  */
 package org.apache.pulsar.ecosystem.io.bigquery;
 
-import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.protobuf.DynamicMessage;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -40,7 +38,7 @@ public interface DataWriter extends AutoCloseable {
      * @param dataWriterRequests
      * @return
      */
-    CompletableFuture<AppendRowsResponse> append(List<DynamicMessage> dataWriterRequests);
+    void append(List<DataWriter.DataWriterRequest> dataWriterRequests);
 
     /**
      * update resources.

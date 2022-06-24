@@ -24,47 +24,38 @@ import com.google.api.core.ApiFutures;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest;
-import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamRequest;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
-import com.google.cloud.bigquery.storage.v1.ProtoSchema;
-import com.google.cloud.bigquery.storage.v1.StreamWriter;
 import com.google.cloud.bigquery.storage.v1.TableName;
 import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.Uninterruptibles;
-import com.google.protobuf.DynamicMessage;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
+import org.apache.pulsar.io.core.SinkContext;
 
 /**
  * data writer use committed mould.
  */
 @Slf4j
-public class DataWriterCommitted implements DataWriter {
+public class DataWriterCommitted extends AbstractDataWriter {
 
-    protected final BigQueryWriteClient client;
-    protected final TableName tableName;
-    protected WriteStream writeStream;
-    protected StreamWriter streamWriter;
-    // cache the latest table schema
-    protected volatile ProtoSchema protoSchemaCache;
+    private List<DataWriterRequest> waitAckMessage;
 
-    public DataWriterCommitted(BigQueryWriteClient client, TableName tableName) {
-        this.client = client;
-        this.tableName = tableName;
-
+    protected DataWriterCommitted(BigQueryWriteClient client, SchemaManager schemaManager,
+                                  SinkContext sinkContext, TableName tableName,
+                                  int failedMaxRetryNum) {
+        super(client, schemaManager, sinkContext, tableName, failedMaxRetryNum);
+        this.waitAckMessage = new ArrayList<>();
     }
 
     @Override
-    public CompletableFuture<AppendRowsResponse> append(List<DynamicMessage> dynamicMessages) {
-
+    public CompletableFuture<AppendRowsResponse> appendMsgs(List<DataWriterRequest> dataWriterRequests) {
         // 1. Write message
         ProtoRows.Builder rowsBuilder = ProtoRows.newBuilder();
-        for (DynamicMessage dynamicMessage : dynamicMessages) {
-            rowsBuilder.addSerializedRows(dynamicMessage.toByteString());
+        for (DataWriterRequest dataWriterRequest : dataWriterRequests) {
+            waitAckMessage.add(dataWriterRequest);
+            rowsBuilder.addSerializedRows(dataWriterRequest.getDynamicMessage().toByteString());
         }
 
         // 2. append
@@ -86,44 +77,6 @@ public class DataWriterCommitted implements DataWriter {
     }
 
     @Override
-    public void updateStream(ProtoSchema protoSchema) {
-        try {
-            closeStream();
-        } catch (Exception e) {
-            log.warn("Close stream exception, ignore. {} ", e.getMessage());
-        }
-        // Wait a while before trying to update the stream
-        Uninterruptibles.sleepUninterruptibly(5, TimeUnit.SECONDS);
-        tryFetchStream(protoSchema);
-    }
-
-    protected void tryFetchStream(ProtoSchema protoSchema) {
-        this.protoSchemaCache = protoSchema;
-        int tryCount = 0;
-        while (true) {
-            try {
-                CreateWriteStreamRequest createWriteStreamRequest = getCreateWriteStreamRequest();
-                writeStream = client.createWriteStream(createWriteStreamRequest);
-                streamWriter = StreamWriter
-                        .newBuilder(writeStream.getName(), client)
-                        .setWriterSchema(protoSchema)
-                        .build();
-                log.info("Update resources success, start new write stream: {}", writeStream.getName());
-                return;
-            } catch (Exception e) {
-                if (tryCount >= 5) {
-                    throw new BQConnectorDirectFailException(
-                            "Update big query resources failed, it doesn't work even after 5 tries, please check", e);
-                } else {
-                    tryCount++;
-                    log.warn("Update big query resources count <{}> failed, Retry after 5 seconds <{}>",
-                            tryCount, e.getMessage());
-                    Uninterruptibles.sleepUninterruptibly(5, TimeUnit.SECONDS);
-                }
-            }
-        }
-    }
-
     protected CreateWriteStreamRequest getCreateWriteStreamRequest() {
         CreateWriteStreamRequest createWriteStreamRequest =
                 CreateWriteStreamRequest.newBuilder()
@@ -133,18 +86,9 @@ public class DataWriterCommitted implements DataWriter {
         return createWriteStreamRequest;
     }
 
-    protected void closeStream() {
-        if (streamWriter != null) {
-            streamWriter.close();
-            FinalizeWriteStreamRequest finalizeWriteStreamRequest =
-                    FinalizeWriteStreamRequest.newBuilder().setName(writeStream.getName()).build();
-            client.finalizeWriteStream(finalizeWriteStreamRequest);
-        }
-    }
-
     @Override
-    public void close() {
-        closeStream();
-        client.close();
+    protected void commit() {
+        ack(waitAckMessage);
+        waitAckMessage.clear();
     }
 }

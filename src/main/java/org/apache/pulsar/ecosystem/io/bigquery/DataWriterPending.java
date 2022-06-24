@@ -18,52 +18,97 @@
  */
 package org.apache.pulsar.ecosystem.io.bigquery;
 
+import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutureCallback;
+import com.google.api.core.ApiFutures;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest;
+import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.StorageError;
 import com.google.cloud.bigquery.storage.v1.TableName;
 import com.google.cloud.bigquery.storage.v1.WriteStream;
-import com.google.protobuf.DynamicMessage;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.ecosystem.io.bigquery.exception.BQConnectorDirectFailException;
+import org.apache.pulsar.io.core.SinkContext;
 
 /**
  * data writer use committed mould.
  */
 @Slf4j
-public class DataWriterPending extends DataWriterCommitted {
+public class DataWriterPending extends AbstractDataWriter {
 
+    private final long commitCount;
+    private long currentCount;
+    private final List<DataWriterRequest> waitAckMessage;
 
-    public DataWriterPending(BigQueryWriteClient client, TableName tableName) {
-        super(client, tableName);
+    public DataWriterPending(BigQueryWriteClient client, SchemaManager schemaManager,
+                             SinkContext sinkContext, TableName tableName, int failedMaxRetryNum,
+                             long commitCount) {
+        super(client, schemaManager, sinkContext, tableName, failedMaxRetryNum);
+        this.commitCount = commitCount;
+        this.currentCount = 0;
+        this.waitAckMessage = new ArrayList<>();
     }
 
     @Override
-    public CompletableFuture<AppendRowsResponse> append(List<DynamicMessage> dynamicMessages) {
-        tryFetchStream(protoSchemaCache);
-        CompletableFuture<AppendRowsResponse> result = super.append(dynamicMessages);
+    public CompletableFuture<AppendRowsResponse> appendMsgs(List<DataWriterRequest> dataWriterRequests) {
+        ProtoRows.Builder rowsBuilder = ProtoRows.newBuilder();
+        for (DataWriterRequest dataWriterRequest : dataWriterRequests) {
+            waitAckMessage.add(dataWriterRequest);
+            rowsBuilder.addSerializedRows(dataWriterRequest.getDynamicMessage().toByteString());
+        }
+        ApiFuture<AppendRowsResponse> append = streamWriter.append(rowsBuilder.build());
+        CompletableFuture<AppendRowsResponse> result = new CompletableFuture<>();
+        ApiFutures.addCallback(
+                append, new ApiFutureCallback<AppendRowsResponse>() {
+                    @Override
+                    public void onFailure(Throwable throwable) {
+                        result.completeExceptionally(throwable);
+                    }
+
+                    @Override
+                    public void onSuccess(AppendRowsResponse appendRowsResponse) {
+                        result.complete(appendRowsResponse);
+                    }
+                }, MoreExecutors.directExecutor());
+        currentCount += dataWriterRequests.size();
+        return result;
+    }
+
+    @Override
+    protected void commit() {
+        if (currentCount > commitCount) {
+            commitPendingMsgs();
+            tryFetchStream(protoSchemaCache);
+        }
+    }
+
+    private void commitPendingMsgs() {
+        closeStream();
         BatchCommitWriteStreamsRequest commitRequest =
                 BatchCommitWriteStreamsRequest.newBuilder()
                         .setParent(tableName.toString())
                         .addWriteStreams(writeStream.getName())
                         .build();
-        closeStream();
         BatchCommitWriteStreamsResponse commitResponse = client.batchCommitWriteStreams(commitRequest);
         if (!commitResponse.hasCommitTime()) {
             List<String> errorMsg = new ArrayList<>();
             for (StorageError err : commitResponse.getStreamErrorsList()) {
                 errorMsg.add(err.getErrorMessage());
             }
-            result.completeExceptionally(
-                    new BQConnectorDirectFailException("Error committing the streams:" + errorMsg));
+            throw new BQConnectorDirectFailException("Error committing the streams:" + errorMsg);
         }
-        return result;
+        log.info("Commit pending data, pending data size:[{}]", waitAckMessage.size());
+        ack(waitAckMessage);
+        currentCount = 0;
+        waitAckMessage.clear();
     }
 
     @Override
@@ -76,4 +121,9 @@ public class DataWriterPending extends DataWriterCommitted {
         return createWriteStreamRequest;
     }
 
+    @Override
+    public void close() {
+        commitPendingMsgs();
+        super.close();
+    }
 }

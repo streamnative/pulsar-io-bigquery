@@ -51,14 +51,19 @@ public class BigQuerySinkAllTestAvro {
         sinkConfig.put("partitionedTables", true);
         sinkConfig.put("partitionedTableIntervalDay", 10);
         sinkConfig.put("defaultSystemField", "__event_time__");
-        sinkConfig.put("visibleModel", "Committed");
+        sinkConfig.put("visibleModel", "Pending");
+        sinkConfig.put("pendingMaxSize", "10");
         sinkConfig.put("batchMaxSize", "20");
         sinkConfig.put("batchMaxTime", "5000");
         sinkConfig.put("batchFlushIntervalTime", "2");
         sinkConfig.put("failedMaxRetryNum", "10");
         bigQuerySink.open(sinkConfig, Mockito.mock(SinkContext.class));
 
-        for (int i = 0; i < 100000; i++) {
+        Thread.sleep(1000);
+        Record<GenericObject> genericRecordRecordFirst = AvroRecordsUtils.getGenericRecordRecordFirst();
+        bigQuerySink.write(genericRecordRecordFirst);
+
+        for (int i = 0; i < 100; i++) {
             Record<GenericObject> genericRecordRecordSecond = AvroRecordsUtils.getGenericRecordRecordSecond();
             bigQuerySink.write(genericRecordRecordSecond);
         }
