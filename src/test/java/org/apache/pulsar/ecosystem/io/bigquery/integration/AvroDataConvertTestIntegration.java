@@ -73,7 +73,7 @@ public class AvroDataConvertTestIntegration {
                         .producerName(pulsarProducerName)
                         .create();
 
-        for (int i = 0; i < 10000000; i++) {
+        for (int i = 0; i < 10; i++) {
             pulsarProducer.newMessage()
                     .sequenceId(i)
                     .eventTime(System.currentTimeMillis())
