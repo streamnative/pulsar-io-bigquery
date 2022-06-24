@@ -73,6 +73,11 @@ public class BigQueryConfig implements Serializable {
     private VisibleModel visibleModel;
 
     @FieldDoc(required = false,
+            defaultValue = "10000",
+            help = "Maximum number of messages waiting to be committed in pending visibility mode")
+    private int pendingMaxSize;
+
+    @FieldDoc(required = false,
             defaultValue = "20",
             help = "Maximum number of batch messages")
     private int batchMaxSize;

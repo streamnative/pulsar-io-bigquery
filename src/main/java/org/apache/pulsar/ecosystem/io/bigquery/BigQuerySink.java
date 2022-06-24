@@ -20,6 +20,7 @@ package org.apache.pulsar.ecosystem.io.bigquery;
 
 import com.google.protobuf.DynamicMessage;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -42,7 +43,7 @@ import org.apache.pulsar.io.core.SinkContext;
 public class BigQuerySink implements Sink<GenericObject> {
 
     // data writer
-    private DataWriterBatchWrapper dataWriterBatch;
+    private DataWriter dataWriterBatch;
     // pulsar
     private RecordConverter recordConverter;
     private BigQueryConfig bigQueryConfig;
@@ -86,18 +87,21 @@ public class BigQuerySink implements Sink<GenericObject> {
                 Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("bigquery-sink"));
         DataWriter dataWriter;
         if (bigQueryConfig.getVisibleModel() == BigQueryConfig.VisibleModel.Committed) {
-            dataWriter = new DataWriterCommitted(bigQueryConfig.createBigQueryWriteClient(),
-                    bigQueryConfig.getTableName());
+            dataWriter = new DataWriterCommitted(bigQueryConfig.createBigQueryWriteClient(), schemaManager, sinkContext,
+                    bigQueryConfig.getTableName(), bigQueryConfig.getFailedMaxRetryNum());
         } else if (bigQueryConfig.getVisibleModel() == BigQueryConfig.VisibleModel.Pending) {
-            dataWriter = new DataWriterPending(bigQueryConfig.createBigQueryWriteClient(),
-                    bigQueryConfig.getTableName());
+            if (bigQueryConfig.getPendingMaxSize() <= 0) {
+                throw new IllegalArgumentException("pendingMaxSize must greater than 0");
+            }
+            dataWriter = new DataWriterPending(bigQueryConfig.createBigQueryWriteClient(), schemaManager, sinkContext,
+                    bigQueryConfig.getTableName(), bigQueryConfig.getFailedMaxRetryNum(),
+                    bigQueryConfig.getPendingMaxSize());
         } else {
             throw new BQConnectorDirectFailException("Not support visible model: " + bigQueryConfig.getVisibleModel()
                     + ", support Committed or Pending");
         }
-        this.dataWriterBatch = new DataWriterBatchWrapper(dataWriter, schemaManager,
-                bigQueryConfig.getBatchMaxSize(), bigQueryConfig.getBatchMaxTime(),
-                bigQueryConfig.getBatchFlushIntervalTime(), bigQueryConfig.getFailedMaxRetryNum(),
+        this.dataWriterBatch = new DataWriterBatchWrapper(dataWriter, bigQueryConfig.getBatchMaxSize(),
+                bigQueryConfig.getBatchMaxTime(), bigQueryConfig.getBatchFlushIntervalTime(),
                 scheduledExecutorService, sinkContext);
         this.sinkContext = sinkContext;
     }
@@ -119,7 +123,6 @@ public class BigQuerySink implements Sink<GenericObject> {
             if (!init) {
                 schemaManager.initTable(record);
                 dataWriterBatch.updateStream(schemaManager.getProtoSchema());
-                dataWriterBatch.init();
                 init = true;
             }
 
@@ -127,7 +130,7 @@ public class BigQuerySink implements Sink<GenericObject> {
             DynamicMessage msg = convertRecord(record);
 
             // 2. append msg.
-            dataWriterBatch.append(new DataWriter.DataWriterRequest(msg, record));
+            dataWriterBatch.append(Arrays.asList(new DataWriter.DataWriterRequest(msg, record)));
 
         }, scheduledExecutorService).get();
     }
