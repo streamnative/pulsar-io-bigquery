@@ -81,7 +81,7 @@ public abstract class AbstractDataWriter implements DataWriter {
         while (true) {
             Throwable exception = null;
             try {
-                appendMsgs(dataWriterRequests).get(10, TimeUnit.SECONDS);
+                appendMsgs(dataWriterRequests).get(60, TimeUnit.SECONDS);
             } catch (ExecutionException e) {
                 exception = e.getCause();
                 sinkContext.recordMetric(MetricContent.FAIL_COUNT, 1);
@@ -151,11 +151,7 @@ public abstract class AbstractDataWriter implements DataWriter {
 
     @Override
     public void updateStream(ProtoSchema protoSchema) {
-        try {
-            closeStream();
-        } catch (Exception e) {
-            log.warn("Close stream exception, ignore. {} ", e.getMessage());
-        }
+        closeStream();
         // Wait a while before trying to update the stream
         Uninterruptibles.sleepUninterruptibly(5, TimeUnit.SECONDS);
         tryFetchStream(protoSchema);
@@ -209,11 +205,15 @@ public abstract class AbstractDataWriter implements DataWriter {
     }
 
     protected void closeStream() {
-        if (streamWriter != null) {
-            streamWriter.close();
-            FinalizeWriteStreamRequest finalizeWriteStreamRequest =
-                    FinalizeWriteStreamRequest.newBuilder().setName(writeStream.getName()).build();
-            client.finalizeWriteStream(finalizeWriteStreamRequest);
+        try {
+            if (streamWriter != null) {
+                streamWriter.close();
+                FinalizeWriteStreamRequest finalizeWriteStreamRequest =
+                        FinalizeWriteStreamRequest.newBuilder().setName(writeStream.getName()).build();
+                client.finalizeWriteStream(finalizeWriteStreamRequest);
+            }
+        } catch (Exception e) {
+            log.warn("Close stream exception, ignore. {} ", e.getMessage());
         }
     }
 }

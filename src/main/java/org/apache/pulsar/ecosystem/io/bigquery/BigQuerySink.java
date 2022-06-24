@@ -90,8 +90,12 @@ public class BigQuerySink implements Sink<GenericObject> {
             dataWriter = new DataWriterCommitted(bigQueryConfig.createBigQueryWriteClient(), schemaManager, sinkContext,
                     bigQueryConfig.getTableName(), bigQueryConfig.getFailedMaxRetryNum());
         } else if (bigQueryConfig.getVisibleModel() == BigQueryConfig.VisibleModel.Pending) {
+            if (bigQueryConfig.getPendingMaxSize() <= 0) {
+                throw new IllegalArgumentException("pendingMaxSize must greater than 0");
+            }
             dataWriter = new DataWriterPending(bigQueryConfig.createBigQueryWriteClient(), schemaManager, sinkContext,
-                    bigQueryConfig.getTableName(), bigQueryConfig.getFailedMaxRetryNum(), 10000);
+                    bigQueryConfig.getTableName(), bigQueryConfig.getFailedMaxRetryNum(),
+                    bigQueryConfig.getPendingMaxSize());
         } else {
             throw new BQConnectorDirectFailException("Not support visible model: " + bigQueryConfig.getVisibleModel()
                     + ", support Committed or Pending");

@@ -85,26 +85,30 @@ public class DataWriterPending extends AbstractDataWriter {
     @Override
     protected void commit() {
         if (currentCount > commitCount) {
-            closeStream();
-            BatchCommitWriteStreamsRequest commitRequest =
-                    BatchCommitWriteStreamsRequest.newBuilder()
-                            .setParent(tableName.toString())
-                            .addWriteStreams(writeStream.getName())
-                            .build();
-            BatchCommitWriteStreamsResponse commitResponse = client.batchCommitWriteStreams(commitRequest);
-            if (!commitResponse.hasCommitTime()) {
-                List<String> errorMsg = new ArrayList<>();
-                for (StorageError err : commitResponse.getStreamErrorsList()) {
-                    errorMsg.add(err.getErrorMessage());
-                }
-                throw new BQConnectorDirectFailException("Error committing the streams:" + errorMsg);
-            }
-            log.info("Commit pending data");
-            ack(waitAckMessage);
+            commitPendingMsgs();
             tryFetchStream(protoSchemaCache);
-            currentCount = 0;
-            waitAckMessage.clear();
         }
+    }
+
+    private void commitPendingMsgs() {
+        closeStream();
+        BatchCommitWriteStreamsRequest commitRequest =
+                BatchCommitWriteStreamsRequest.newBuilder()
+                        .setParent(tableName.toString())
+                        .addWriteStreams(writeStream.getName())
+                        .build();
+        BatchCommitWriteStreamsResponse commitResponse = client.batchCommitWriteStreams(commitRequest);
+        if (!commitResponse.hasCommitTime()) {
+            List<String> errorMsg = new ArrayList<>();
+            for (StorageError err : commitResponse.getStreamErrorsList()) {
+                errorMsg.add(err.getErrorMessage());
+            }
+            throw new BQConnectorDirectFailException("Error committing the streams:" + errorMsg);
+        }
+        log.info("Commit pending data, pending data size:[{}]", waitAckMessage.size());
+        ack(waitAckMessage);
+        currentCount = 0;
+        waitAckMessage.clear();
     }
 
     @Override
@@ -119,7 +123,7 @@ public class DataWriterPending extends AbstractDataWriter {
 
     @Override
     public void close() {
-        commit();
+        commitPendingMsgs();
         super.close();
     }
 }

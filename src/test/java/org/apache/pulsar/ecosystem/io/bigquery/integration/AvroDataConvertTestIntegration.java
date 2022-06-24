@@ -27,6 +27,7 @@ import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableResult;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -66,11 +67,17 @@ public class AvroDataConvertTestIntegration {
         Producer<AvroRecordsUtils.Foo> pulsarProducer =
                 pulsarClient.newProducer(Schema.AVRO(AvroRecordsUtils.Foo.class))
                         .topic(pulsarTopic)
+                        .sendTimeout(100, TimeUnit.SECONDS)
+                        .enableBatching(true)
+                        .blockIfQueueFull(true)
                         .producerName(pulsarProducerName)
                         .create();
 
-        for (int i = 0; i < 10; i++) {
-            pulsarProducer.newMessage().value(AvroRecordsUtils.getFoo1()).send();
+        for (int i = 0; i < 10000000; i++) {
+            pulsarProducer.newMessage()
+                    .sequenceId(i)
+                    .eventTime(System.currentTimeMillis())
+                    .value(AvroRecordsUtils.getFoo1()).send();
         }
 
         // 3. query and assert
