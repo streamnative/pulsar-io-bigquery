@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,23 +19,18 @@
     under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
     <version>18</version>
   </parent>
-
   <modelVersion>4.0.0</modelVersion>
-
   <groupId>io.streamnative.ecosystem</groupId>
   <artifactId>pulsar-io-bigquery</artifactId>
-  <version>0.0.1</version>
+  <version>2.10.1.0-rc-20220701</version>
   <name>Pulsar Ecosystem :: IO Connector :: Big Query</name>
   <description>It is a big query for developing an Apache Pulsar connector</description>
-
   <properties>
     <java.version>1.8</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -43,21 +38,18 @@
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
     <spotbugs-annotations.version>3.1.8</spotbugs-annotations.version>
     <testRetryCount>2</testRetryCount>
-
     <!-- connector dependencies -->
     <jackson.version>2.9.7</jackson.version>
     <lombok.version>1.16.22</lombok.version>
     <pulsar.version>2.10.0.6</pulsar.version>
     <avro.version>1.10.2</avro.version>
     <google.cloud.version>25.1.0</google.cloud.version>
-
     <!-- test dependencies -->
     <junit.version>4.12</junit.version>
     <mockito.version>2.22.0</mockito.version>
     <powermock.version>2.0.0-beta.5</powermock.version>
     <testcontainers.version>1.8.3</testcontainers.version>
     <slf4j.version>1.7.25</slf4j.version>
-
     <!-- build plugin dependencies -->
     <license.plugin.version>3.0</license.plugin.version>
     <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
@@ -67,7 +59,6 @@
     <puppycrawl.checkstyle.version>6.19</puppycrawl.checkstyle.version>
     <spotbugs-maven-plugin.version>3.1.8</spotbugs-maven-plugin.version>
   </properties>
-
   <licenses>
     <license>
       <name>Apache License, Version 2.0</name>
@@ -75,7 +66,6 @@
       <distribution>repo</distribution>
     </license>
   </licenses>
-
   <!-- keep all the dependencies used by all modules here -->
   <dependencyManagement>
     <dependencies>
@@ -126,7 +116,6 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-
       <!-- test dependencies -->
       <dependency>
         <groupId>junit</groupId>
@@ -160,10 +149,8 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
-
   <!-- include the dependencies -->
   <dependencies>
-
     <!-- provided dependencies (available at compilation and test classpaths and *NOT* packaged) -->
     <dependency>
       <groupId>org.projectlombok</groupId>
@@ -201,7 +188,6 @@
       </exclusions>
       <scope>provided</scope>
     </dependency>
-
     <!-- runtime dependencies -->
     <dependency>
       <groupId>com.google.cloud</groupId>
@@ -219,7 +205,6 @@
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
     </dependency>
-
     <!-- test dependencies -->
     <dependency>
       <groupId>junit</groupId>
@@ -256,9 +241,7 @@
       <artifactId>pulsar-client-original</artifactId>
       <scope>test</scope>
     </dependency>
-
   </dependencies>
-
   <build>
     <pluginManagement>
       <plugins>
@@ -275,7 +258,7 @@
               <compilerArg>-Xlint:unchecked</compilerArg>
               <!-- https://issues.apache.org/jira/browse/MCOMPILER-205 -->
               <compilerArg>-Xpkginfo:always</compilerArg>
-	        </compilerArgs>
+            </compilerArgs>
           </configuration>
         </plugin>
         <!-- test -->
@@ -410,38 +393,32 @@
         </plugin>
       </plugins>
     </pluginManagement>
-
     <plugins>
-      <!-- compile --> 
+      <!-- compile -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
       </plugin>
-
       <!-- test -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
       </plugin>
-
       <!-- package -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
       </plugin>
-
       <!-- license -->
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
       </plugin>
-
       <!-- checkstyle -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
       </plugin>
-
       <!-- spotbugs -->
       <plugin>
         <groupId>com.github.spotbugs</groupId>
@@ -449,5 +426,28 @@
       </plugin>
     </plugins>
   </build>
-
+  <repositories>
+    <repository>
+      <id>staging</id>
+      <url>https://dl.cloudsmith.io/${env.CLOUDSMITH_API_KEY}/streamnative/staging/maven/</url>
+      <releases>
+        <enabled>true</enabled>
+        <updatePolicy>always</updatePolicy>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+        <updatePolicy>always</updatePolicy>
+      </snapshots>
+    </repository>
+  </repositories>
+  <distributionManagement>
+    <snapshotRepository>
+      <id>staging</id>
+      <url>https://maven.cloudsmith.io/streamnative/staging/</url>
+    </snapshotRepository>
+    <repository>
+      <id>staging</id>
+      <url>https://maven.cloudsmith.io/streamnative/staging/</url>
+    </repository>
+  </distributionManagement>
 </project>
