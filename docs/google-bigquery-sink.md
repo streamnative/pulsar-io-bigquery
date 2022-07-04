@@ -8,24 +8,25 @@ The [Google Cloud BigQuery](https://cloud.google.com/bigquery) sink connector pu
 ![](/docs/google-bigquery-sink.png)
 
 # Features
-This section describes Google BigQuery Sink connector features.
+This section describes features of the Google Cloud BigQuery sink connector. For details about how to configure these features, see [how to configure](#how-to-configure).
 
-## At least once delivery
+## Delivery guarantees
 
-Pulsar connector framework provides three guarantees: `at-most-once`, `at-least-once` and `effectively-once`.
 
-The connector can provide the `at-least-once` delivery at most, and when the user configures the `effectively-once`, it will throw exception.
+The Pulsar IO connector framework provides three [delivery guarantees](https://pulsar.apache.org/docs/next/functions-concepts#processing-guarantees-and-subscription-types): `at-most-once`, `at-least-once`, and `effectively-once`.
+
+Currently, the Google Cloud BigQuery sink connector only provides the `at-least-once` delivery guarantee.
 
 ## Auto create and update tables schema
 
-The connector support auto create and update tables schema by pulsar topic schema. Can be controlled by the following configuration:
+The Google Cloud BigQuery sink connector supports automatically creating and updating a table’s schema based on the Pulsar topic schema. If the Pulsar topic schema and BigQuery schema are different, the Google Cloud BigQuery sink connector updates schemas by merging them together. You can configure the following options:
 ```
 autoCreataTables = true
 autoUpdateSchema = true
 ```
-The connector supports mapping structures schema, structures are mapped to BigQuery [RECORD TYPE](https://cloud.google.com/bigquery/docs/nested-repeated#example_schema).
+The Google Cloud BigQuery sink connector supports mapping schema structures to the BigQuery [RECORD TYPE](https://cloud.google.com/bigquery/docs/nested-repeated#example_schema).
 
-Also support write some pulsar system field. Refer to the configuration below:
+In addition, the Google Cloud BigQuery sink connector supports writing some Pulsar-specific fields, as shown below:
 ```
 #
 # optional: __schema_version__ , __partition__   , __event_time__    , __publish_time__  
@@ -34,51 +35,57 @@ Also support write some pulsar system field. Refer to the configuration below:
 defaultSystemField = __event_time__,__message_id__
 ```
 
-The update schema currently adopts the merge rule, when it is found that the pulsar topic schema and bigquery schema are different, bigquery will merge the two schemas.
-
-> That bigquery will not delete fields. If you change the name of a field in pulsar topic, the connector preserves both fields.
 
 
-The schemas that currently support conversion are:
+> **Note**
+>
+> The Google Cloud BigQuery sink connector does not delete any fields. If you change a field name in a Pulsar topic, the Google Cloud BigQuery sink connector will preserve both fields.
 
-| schema          | support |
+
+This table lists the schema types that currently are supported to be converted.
+
+| Schema          | Supported or not |
 |-----------------|---------|
 | AVRO            | Yes     |
 | PRIMITIVE       | Yes     |
-| JSON            | Doing   |
-| KEY_VALUE       | Plan    |
-| PROTOBUF        | Plan    |
-| PROTOBUF_NATIVE | Plan    |
+| JSON            | No   |
+| KEY_VALUE       | No    |
+| PROTOBUF        | No    |
+| PROTOBUF_NATIVE | No   |
 
 ## Partitioned tables and clustered tables
-> This feature takes effect only when autoCreateTable = true. If you create a table manually, you need to manually spcify the partition key and cluster table key.
+> **Note**
+>
+> This feature is only available when `autoCreateTable` is set to `true`. If you create a table manually, you need to manually specify the partition key and clustered table key.
 
 ### Partitioned tables
-BigQuery supports partitioned tables. Partitioned tables can improve query and control costs by reducing the data read from the table by the query.
-This connector will provide a switch for users to choose whether to create a partition table, it will use __event_time__ the partition key.
+BigQuery supports [partitioned tables](​​https://cloud.google.com/bigquery/docs/partitioned-tables). Partitioned tables can improve query and control costs by reducing the data read from the table.
+The Google Cloud BigQuery sink connector provides an option to create a partitioned table. The partitioned tables use the __event_time__ as the partition key.
 ```
 partitioned-tables = true
 ```
 
 ### Clustered tables
-Clustered tables can improve query a partition. This connector will provide a switch for users to choose whether to create a clustered table, it will use __message_id__ the partition key.
+[Clustered tables](https://cloud.google.com/bigquery/docs/clustered-tables) can improve the performance of certain types of queries such as queries that use filter clauses and queries that aggregate data. The Google Cloud BigQuery sink connector provides an option to create a clustered table. The clustered tables use the __message_id__ as the partition key.
 ```
 clustered-tables = true
 ```
 
 ## Multiple tasks
-The parallelism of Sink execution can be configured, use the scheduling mechanism of the Function itself, and multiple sink instances will be scheduled to run on different worker nodes. Multiple sinks will consume message together according to the configured subscription mode.
+You can leverage the Pulsar Functions scheduling mechanism to configure parallelism of the Google Cloud BigQuery Sink connector. You can schedule
+multiple sink instances to run on different Function worker nodes. These sink instances consume messages according to the configured subscription mode.
 
 ```
 parallelism = 4
 ```
 
+> **Note**
+>
 > When you encounter write bottlenecks, increasing parallelism is an effective way. Also, you need to pay attention to whether the write rate is greater than [BigQuery Rate Limits](https://cloud.google.com/bigquery/quotas#streaming_inserts)
 
 ## Batch progress
 
-In order to increase write throughput, this connector does batch internally. You can control to write batch size and latency through the following parameters.
-
+To increase write throughput, the Google Cloud BigQuery sink connector supports batch internally. You can set the batch size and latency using the following options.
 ```
 batchMaxSize = 100
 batchMaxTime = 4000
@@ -86,17 +93,17 @@ batchFlushIntervalTime = 2000
 ```
 
 # How to get
-This section describes how to build the Google BigQuery sink connector.
+This section describes how to build the Google Cloud BigQuery sink connector.
 
 ## Work with Function Worker
 
-You can get the Google BigQuery sink connector using one of the following methods if you use [Pulsar Function Worker](https://pulsar.apache.org/docs/en/functions-worker/) to run connectors in a cluster.
+You can get the Google Cloud BigQuery sink connector using one of the following methods if you use [Pulsar Function Worker](https://pulsar.apache.org/docs/en/functions-worker/) to run the connector in a cluster.
 
 - Download the JAR package from [the download page](https://github.com/streamnative/pulsar-io-bigquery/releases/download/v{{connector:version}}/pulsar-io-bigquery-{{connector:version}}.jar).
 
 - Build it from the source code.
 
-To build the Google BigQuery sink connector from the source code, follow these steps.
+To build the Google Cloud BigQuery sink connector from the source code, follow these steps.
 
 1. Clone the source code to your machine.
 
@@ -118,34 +125,34 @@ To build the Google BigQuery sink connector from the source code, follow these s
    ```
 
 ## Work with Function Mesh
-You can pull the Google BigQuery sink connector Docker image from the [Docker Hub](https://hub.docker.com/r/streamnative/pulsar-io-bigquery) if you use [Function Mesh](https://functionmesh.io/docs/connectors/run-connector) to run the connector.
+You can pull the Google Cloud BigQuery sink connector Docker image from the [Docker Hub](https://hub.docker.com/r/streamnative/pulsar-io-bigquery) if you use [Function Mesh](https://functionmesh.io/docs/connectors/run-connector) to run the connector.
 
-# How to configure 
+# How to configure
 
-Before using the Google BigQuery sink connector, you need to configure it. This table lists the properties and the descriptions.
+Before using the Google Cloud BigQuery sink connector, you need to configure it. This table outlines the properties and the descriptions.
 
 | Name                          | Type    | Required | Default           | Description                                                                                                                                                                                                                                                                      |
 |-------------------------------|---------|----------|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `projectId`                   | String  | true     | "" (empty string) | The Google BigQuery project id.                                                                                                                                                                                                                                                  |
-| `datasetName`                 | String  | true     | "" (empty string) | The Google BigQuery dataset name.                                                                                                                                                                                                                                                |
-| `tableName`                   | String  | true     | "" (empty string) | The Google BigQuery table name.                                                                                                                                                                                                                                                  |
-| `credentialJsonString`        | String  | true     | "" (empty string) | Authentication key, use the environment variable to get the key when key is empty. Key acquisition reference [Google Doc](https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries#before-you-begin).                                                      |
-| `visibleModel`                | String  | false    | "Committed"       | Optional `Committed` or `Pending`. The mode controls when data written to the stream becomes visible in BigQuery for reading. Refer [Google Doc](https://cloud.google.com/bigquery/docs/write-api#application-created_streams).                                                  |
-| `pendingMaxSize`              | int     | false    | 10000             | Maximum number of messages waiting to be committed in `Pending` visibility mode.                                                                                                                                                                                                 |
-| `batchMaxSize`                | int     | false    | 20                | Maximum number of batch messages.                                                                                                                                                                                                                                                |
-| `batchMaxTime`                | long    | false    | 5000              | Batch max wait time: milliseconds.                                                                                                                                                                                                                                               |
-| `batchFlushIntervalTime`      | long    | false    | 2000              | Batch trigger flush interval time: milliseconds.                                                                                                                                                                                                                                 |
-| `failedMaxRetryNum`           | int     | false    | 20                | When append failed, max retry num. Wait 2 seconds for each retry.                                                                                                                                                                                                                |
-| `partitionedTables`           | boolean | false    | true              | Create a partitioned table when the table is automatically created. It will use `__event_time__` the partition key.                                                                                                                                                              |
-| `partitionedTableIntervalDay` | int     | false    | 7                 | Unit: day, `partitionedTableIntervalDay` is number of days between partitioning of the partitioned table                                                                                                                                                                         |
-| `clusteredTables`             | boolean | false    | true              | Create a clusteredTables table when the table is automatically created. It will use `__message_id__` the partition key.                                                                                                                                                          |
-| `autoCreateTable`             | boolean | false    | true              | Automatically create table when table does not exist.                                                                                                                                                                                                                            |
-| `autoUpdateTable`             | boolean | false    | true              | Automatically update table schema when table schema is incompatible.                                                                                                                                                                                                             |
-| `defaultSystemField`          | String  | false    | "" (empty string) | Create system fields when the table is automatically created, separate multiple fields with commas. The supported system fields are: `__schema_version__` , `__partition__` , `__event_time__`, `__publish_time__` , `__message_id__` , `__sequence_id__` , `__producer_name__`. |
+| `projectId`                   | String  | Yes    | "" (empty string) | The Google BigQuery project ID.                                                                                                                                                                                                                                                  |
+| `datasetName`                 | String  | Yes    | "" (empty string) | The Google BigQuery dataset name.                                                                                                                                                                                                                                                |
+| `tableName`                   | String  | Yes    | "" (empty string) | The Google BigQuery table name.                                                                                                                                                                                                                                                  |
+| `credentialJsonString`        | String  | Yes    | "" (empty string) | The authentication key. You can set  an environment variable to get the key when the key is empty. For details,, see the [Google documentation](https://cloud.google.com/bigquery/docs/quickstarts/quickstart-client-libraries#before-you-begin).                                                      |
+| `visibleModel`                | String  | No    | "Committed"       | The mode that controls when data written to the stream becomes visible in BigQuery for reading. For details, see the [Google documentation](https://cloud.google.com/bigquery/docs/write-api#application-created_streams). Available options are `Committed` and `Pending`.                                                  |
+| `pendingMaxSize`              | int     | No    | 10000             | The maximum number of messages waiting to be committed in the `Pending` mode.                                                                                                                                                                                                 |
+| `batchMaxSize`                | int     | No    | 20                | The maximum number of batch messages.                                                                                                                                                                                                                                                |
+| `batchMaxTime`                | long    | No    | 5000              | The maximum batch waiting time (in units of milliseconds).                                                                                                                                                                                                                                               |
+| `batchFlushIntervalTime`      | long    | No    | 2000              | The batch flush interval (in units of milliseconds).                                                                                                                                                                                                                                 |
+| `failedMaxRetryNum`           | int     | No    | 20                | The maximum retries when appending fails. By default, it sets 2 seconds for each retry.                                                                                                                                                                                                                |
+| `partitionedTables`           | boolean | No    | true              | Create a partitioned table when the table is automatically created. It will use the `__event_time__` as the partition key.                                                                                                                                                              |
+| `partitionedTableIntervalDay` | int     | No    | 7                 | The number of days between partitioning of the partitioned table.                                                                                                                                                                         |
+| `clusteredTables`             | boolean | No    | true              | Create a clustered table when the table is automatically created. It will use the `__message_id__` as the partition key.                                                                                                                                                          |
+| `autoCreateTable`             | boolean | No    | true              | Automatically create a table if no table is available.                                                                                                                                                                                                                            |
+| `autoUpdateTable`             | boolean | No    | true              | Automatically update the table schema if the table schema is incompatible.                                                                                                                                                                                                             |
+| `defaultSystemField`          | String  | No    | "" (empty string) | Create the system fields when the table is automatically created. You can use commas to separate multiple fields. The supported system fields are: `__schema_version__` , `__partition__` , `__event_time__`, `__publish_time__` , `__message_id__` , `__sequence_id__` , and `__producer_name__`. |
 
 > **Note**
 >
-> The provided Google Cloud credentials must have permissions to access Google Cloud resources. To use the Google BigQuery sink connector, ensure the Google Cloud credentials have the following permissions to Google BigQuery API:
+> The provided Google Cloud credentials must have permission to access Google Cloud resources. To use the Google Cloud BigQuery sink connector, ensure the Google Cloud credentials have the following permissions to the Google BigQuery API:
 >
 > - bigquery.jobs.create
 > - bigquery.tables.create
@@ -205,7 +212,7 @@ You can create a configuration file (JSON or YAML) to set the properties if you 
     ```
 
 ## Work with Function Mesh
-You can create a [CustomResourceDefinitions (CRD)](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) to create a Google BigQuery sink connector. Using CRD makes Function Mesh naturally integrate with the Kubernetes ecosystem. For more information about Pulsar sink CRD configurations, see [sink CRD configurations](https://functionmesh.io/docs/connectors/io-crd-config/sink-crd-config).
+You can create a [CustomResourceDefinitions (CRD)](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) to create a Google Cloud BigQuery sink connector. Using CRD makes Function Mesh naturally integrate with the Kubernetes ecosystem. For more information about Pulsar sink CRD configurations, see [sink CRD configurations](https://functionmesh.io/docs/connectors/io-crd-config/sink-crd-config).
 
 You can define a CRD file (YAML) to set the properties as below.
 
@@ -244,32 +251,34 @@ spec:
 
 # How to use
 
-You can use the Google BigQuery sink connector with Function Worker or Function Mesh.
+You can use the Google Cloud BigQuery sink connector with Function Worker or Function Mesh.
 
 ## Work with Function Worker
 
-> Since the connector uses jar package, build-in running is not supported for the time being.
+> **Note**
+>
+>  Currently, the Google Cloud BigQuery sink connector cannot run as a built-in connector as it uses the JAR package.
 
-**Step1: Start Pulsar cluster.**
+1.  Start a Pulsar cluster in standalone mode.
 ```
 PULSAR_HOME/bin/pulsar standalone
 ```
 
-**Step2: Run the Google BigQuery sink connector.**
+2. Run the Google Cloud BigQuery sink connector.
 ```
 PULSAR_HOME/bin/pulsar-admin sinks localrun \
 --sink-config-file <google-bigquery-sink-config.yaml>
 --archive <pulsar-io-bigquery-{{connector:version}}.jar>
 ```
 
-Or you can create to on pulsar cluster.
+Or, you can create a connector for the Pulsar cluster.
 ```
 PULSAR_HOME/bin/pulsar-admin sinks create \
 --sink-config-file <google-bigquery-sink-config.yaml>
 --archive <pulsar-io-bigquery-{{connector:version}}.jar>
 ```
 
-**Step3: Send messages to Pulsar topics.**
+3.  Send messages to a Pulsar topic.
 
 This example sends ten “hello” messages to the `test-google-pubsub-pulsar` topic in the `default` namespace of the `public` tenant.
 
@@ -277,13 +286,12 @@ This example sends ten “hello” messages to the `test-google-pubsub-pulsar` t
 PULSAR_HOME/bin/pulsar-client produce public/default/test-google-pubsub-pulsar --messages hello -n 10
  ```
 
-**Step4: Query on Google BigQuery**
+4. Query data using Google BigQuery.
 
-Please go to Google BigQuery Console to query the data in the table.
-
+For details, see [Query a public dataset with the Google Cloud console](https://cloud.google.com/bigquery/docs/quickstarts/query-public-dataset-console).
 ## Work with Function Mesh
 
-This example describes how to create a Google BigQuery sink connector for a Kubernetes cluster using Function Mesh.
+This example describes how to create a Google Cloud BigQuery sink connector for a Kubernetes cluster using Function Mesh.
 
 ### Prerequisites
 
@@ -297,9 +305,9 @@ This example describes how to create a Google BigQuery sink connector for a Kube
 
 ### Step
 
-1. Define the Google BigQuery sink connector with a YAML file and save it as `sink-sample.yaml`.
+1. Define the Google Cloud BigQuery sink connector with a YAML file and save it as `sink-sample.yaml`.
 
-   This example shows how to publish the Google BigQuery sink connector to Function Mesh with a Docker image.
+   This example shows how to publish the Google Cloud BigQuery sink connector to Function Mesh with a Docker image.
 
    ```yaml
    apiVersion: compute.functionmesh.io/v1alpha1
@@ -334,7 +342,7 @@ This example describes how to create a Google BigQuery sink connector for a Kube
      autoAck: false
    ```
 
-2. Apply the YAML file to create the Google BigQuery sink connector.
+2. Apply the YAML file to create the Google Cloud BigQuery sink connector.
 
    **Input**
 
@@ -345,10 +353,10 @@ This example describes how to create a Google BigQuery sink connector for a Kube
    **Output**
 
     ```
-    sink.compute.functionmesh.io/google-pubsub-sink-sample created
+    sink.compute.functionmesh.io/google-bigquery-sink-sample created
     ```
 
-3. Check whether the Google BigQuery sink connector is created successfully.
+3. Check whether the Google Cloud BigQuery sink connector is created successfully.
 
    **Input**
 
@@ -360,7 +368,8 @@ This example describes how to create a Google BigQuery sink connector for a Kube
 
     ```
     NAME                                         READY   STATUS      RESTARTS   AGE
-    pod/google-pubsub-sink-sample-0               1/1    Running     0          77s
+    pod/google-bigquery-sink-sample-0               1/1    Running     0          77s
     ```
 
-   After that, you can produce and consume messages using the Google BigQuery sink connector between Pulsar and Google BigQuery.
+   After that, you can produce and consume messages using the Google Cloud BigQuery sink connector between Pulsar and Google BigQuery.
+
