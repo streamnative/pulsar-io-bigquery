@@ -37,7 +37,7 @@ on:
 
 jobs:
   labeling:
-    if: ${{ github.repository == 'streamnative/pulsar-io-template' }}
+    if: ${{ github.repository == 'streamnative/pulsar-io-bigquery' }}
     permissions:
       pull-requests: write 
     runs-on: ubuntu-latest

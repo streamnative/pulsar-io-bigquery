@@ -45,31 +45,31 @@ configs:
   #
   visibleModel: Committed
 
-  # Maximum number of messages waiting to be committed in pending visibility mode
+  # Maximum number of messages waiting to be committed in pending visibility mode.
   #
   # This field is optional.
   #
   pendingMaxSize: 10000
 
-  # Maximum number of batch messages
+  # Maximum number of batch messages.
   #
   # This field is optional.
   #
   batchMaxSize: 20
 
-  # Batch max wait time: milliseconds
+  # Batch max wait time: milliseconds.
   #
   # This field is optional.
   #
   batchMaxTime: 3000
 
-  # Batch trigger flush interval time: milliseconds
+  # Batch trigger flush interval time: milliseconds.
   #
   # This field is optional.
   #
   batchFlushIntervalTime: 2000
 
-  # When append failed, max retry num. Wait 2 seconds for each retry
+  # When append failed, max retry num. Wait 2 seconds for each retry.
   #
   # This field is optional.
   #
@@ -82,7 +82,7 @@ configs:
   #
   partitionedTables: true
 
-  # clusteredTableIntervalDay is number of days between partitioning of the partitioned table
+  # partitionedTableIntervalDay is number of days between partitioning of the partitioned table.
   #
   # This field is optional.
   #
@@ -95,7 +95,7 @@ configs:
   #
   clusteredTables: true
 
-  # Automatically create table when table does not exist
+  # Automatically create table when table does not exist.
   #
   # This field is optional.
   #
