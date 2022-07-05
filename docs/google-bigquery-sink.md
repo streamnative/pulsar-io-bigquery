@@ -265,31 +265,31 @@ You can use the Google Cloud BigQuery sink connector with Function Worker or Fun
 > Currently, the Google Cloud BigQuery sink connector cannot run as a built-in connector as it uses the JAR package.
 
 1. Start a Pulsar cluster in standalone mode.
-```
-PULSAR_HOME/bin/pulsar standalone
-```
+    ```
+    PULSAR_HOME/bin/pulsar standalone
+    ```
 
 2. Run the Google Cloud BigQuery sink connector.
-```
-PULSAR_HOME/bin/pulsar-admin sinks localrun \
---sink-config-file <google-bigquery-sink-config.yaml>
---archive <pulsar-io-bigquery-{{connector:version}}.jar>
-```
+    ```
+    PULSAR_HOME/bin/pulsar-admin sinks localrun \
+    --sink-config-file <google-bigquery-sink-config.yaml>
+    --archive <pulsar-io-bigquery-{{connector:version}}.jar>
+    ```
 
-Or, you can create a connector for the Pulsar cluster.
-```
-PULSAR_HOME/bin/pulsar-admin sinks create \
---sink-config-file <google-bigquery-sink-config.yaml>
---archive <pulsar-io-bigquery-{{connector:version}}.jar>
-```
+    Or, you can create a connector for the Pulsar cluster.
+    ```
+    PULSAR_HOME/bin/pulsar-admin sinks create \
+    --sink-config-file <google-bigquery-sink-config.yaml>
+    --archive <pulsar-io-bigquery-{{connector:version}}.jar>
+    ```
 
 3. Send messages to a Pulsar topic.
 
-This example sends ten “hello” messages to the `test-google-pubsub-pulsar` topic in the `default` namespace of the `public` tenant.
-
- ```
-PULSAR_HOME/bin/pulsar-client produce public/default/test-google-pubsub-pulsar --messages hello -n 10
- ```
+    This example sends ten “hello” messages to the `test-google-pubsub-pulsar` topic in the `default` namespace of the `public` tenant.
+    
+     ```
+    PULSAR_HOME/bin/pulsar-client produce public/default/test-google-pubsub-pulsar --messages hello -n 10
+     ```
 
 4. Query data using Google BigQuery.
 
