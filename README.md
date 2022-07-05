@@ -1,6 +1,6 @@
 ## Google BigQuery sink connector
 
-The [Google BigQuery](https://cloud.google.com/bigquery) connector is a [Pulsar IO connector](http://pulsar.apache.org/docs/en/next/io-overview/) for copying data between Google BigQuery and Pulsar. 
+The [Google Cloud BigQuery](https://cloud.google.com/bigquery) connector is a [Pulsar IO connector](http://pulsar.apache.org/docs/en/next/io-overview/) for copying data between Google BigQuery and Pulsar. 
 
 This connector pulls data from Pulsar topics and persists data to Google BigQuery.
 
