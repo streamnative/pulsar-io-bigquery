@@ -10,8 +10,8 @@ Currently, Google BigQuery connector versions (`x.y.z`) are based on Pulsar vers
 
 | Google BigQuery connector version                                                   | Pulsar version                                  | Doc                                                                                                      |
 |:------------------------------------------------------------------------------------|:------------------------------------------------|:---------------------------------------------------------------------------------------------------------|
-| [2.8.x](https://github.com/streamnative/pulsar-io-bigquery/releases/tag/v2.8.3.5)   | [2.8.0](http://pulsar.apache.org/en/download/)  | [Google BigQuery sink connector doc](https://hub.streamnative.io/connectors/google-bigquery-sink/2.8.3)  |
-| [2.9.x](https://github.com/streamnative/pulsar-io-bigquery/releases/tag/v2.9.2.23)  | [2.9.0](http://pulsar.apache.org/en/download/)  | [Google BigQuery sink connector doc](https://hub.streamnative.io/connectors/google-bigquery-sink/2.9.2)  |
+| [2.8.x](https://github.com/streamnative/pulsar-io-bigquery/releases/tag/v2.8.3.5)   | [2.8.3](http://pulsar.apache.org/en/download/)  | [Google BigQuery sink connector doc](https://hub.streamnative.io/connectors/google-bigquery-sink/2.8.3)  |
+| [2.9.x](https://github.com/streamnative/pulsar-io-bigquery/releases/tag/v2.9.2.23)  | [2.9.2](http://pulsar.apache.org/en/download/)  | [Google BigQuery sink connector doc](https://hub.streamnative.io/connectors/google-bigquery-sink/2.9.2)  |
 | [2.10.x](https://github.com/streamnative/pulsar-io-bigquery/releases/tag/v2.10.1.1) | [2.10.1](http://pulsar.apache.org/en/download/) | [Google BigQuery sink connector doc](https://hub.streamnative.io/connectors/google-bigquery-sink/2.10.1) |
 
 
