@@ -14,13 +14,13 @@ echo "Waiting for Pulsar service ..."
 until curl http://localhost:8080/metrics > /dev/null 2>&1 ; do sleep 1; done
 echo "Pulsar service available"
 
-JAR_PATH="/test-pulsar-io-bigquery/pulsar-io-bigquery.jar"
+JAR_PATH="/test-pulsar-io-bigquery/pulsar-io-bigquery.nar"
 
 echo "Run sink connector"
 SINK_NAME="avro-test-bigquery"
 SINK_CONFIG_FILE="/test-pulsar-io-bigquery/pulsar-io-bigquery-avro.yaml"
 INPUT_TOPIC="avro-bigquery-topic"
-eval "${PULSAR_ADMIN} sinks localrun -a ${JAR_PATH} \
+eval "${PULSAR_ADMIN} sinks create -a ${JAR_PATH} \
         --tenant public --namespace default --name ${SINK_NAME} \
         --sink-config-file ${SINK_CONFIG_FILE} \
         -i ${INPUT_TOPIC}"
@@ -28,7 +28,7 @@ eval "${PULSAR_ADMIN} sinks localrun -a ${JAR_PATH} \
 SINK_NAME="primitive-test-bigquery"
 SINK_CONFIG_FILE="/test-pulsar-io-bigquery/pulsar-io-bigquery-primitive.yaml"
 INPUT_TOPIC="primitive-bigquery-topic"
-eval "${PULSAR_ADMIN} sinks localrun -a ${JAR_PATH} \
+eval "${PULSAR_ADMIN} sinks create -a ${JAR_PATH} \
         --tenant public --namespace default --name ${SINK_NAME} \
         --sink-config-file ${SINK_CONFIG_FILE} \
         -i ${INPUT_TOPIC}"

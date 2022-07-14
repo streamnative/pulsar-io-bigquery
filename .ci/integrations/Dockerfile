@@ -6,6 +6,6 @@ COPY .ci/integrations/bigquery-key.json /test-pulsar-io-bigquery/bigquery-key.js
 
 ENV GOOGLE_APPLICATION_CREDENTIALS /test-pulsar-io-bigquery/bigquery-key.json
 
-COPY target/pulsar-io-bigquery-*.jar /test-pulsar-io-bigquery/pulsar-io-bigquery.jar
+COPY target/pulsar-io-bigquery-*.nar /test-pulsar-io-bigquery/pulsar-io-bigquery.nar
 
 ENTRYPOINT ["/pulsar/bin/pulsar", "standalone"]
