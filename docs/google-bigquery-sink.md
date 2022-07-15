@@ -104,7 +104,7 @@ This section describes how to build the Google Cloud BigQuery sink connector.
 
 You can get the Google Cloud BigQuery sink connector using one of the following methods if you use [Pulsar Function Worker](https://pulsar.apache.org/docs/en/functions-worker/) to run the connector in a cluster.
 
-- Download the JAR package from [the download page](https://github.com/streamnative/pulsar-io-bigquery/releases/download/v{{connector:version}}/pulsar-io-bigquery-{{connector:version}}.jar).
+- Download the JAR package from [the download page](https://github.com/streamnative/pulsar-io-bigquery/releases/download/v2.10.1.3/pulsar-io-bigquery-2.10.1.3.jar).
 
 - Build it from the source code.
 
@@ -126,7 +126,7 @@ To build the Google Cloud BigQuery sink connector from the source code, follow t
 
    ```bash
    ls target
-   pulsar-io-bigquery-{{connector:version}}.jar
+   pulsar-io-bigquery-2.10.1.3.jar
    ```
 
 ## Work with Function Mesh
@@ -181,7 +181,7 @@ You can create a configuration file (JSON or YAML) to set the properties if you 
    ```json
     {
         "name": "google-bigquery-sink",
-        "archive": "connectors/pulsar-io-bigquery-{{connector:version}}.jar",
+        "archive": "connectors/pulsar-io-bigquery-2.10.1.3.jar",
         "className": "org.apache.pulsar.ecosystem.io.bigquery.BigQuerySink",
         "tenant": "public",
         "namespace": "default",
@@ -202,7 +202,7 @@ You can create a configuration file (JSON or YAML) to set the properties if you 
 
     ```yaml
      name: google-bigquery-sink
-     archive: 'connectors/pulsar-io-bigquery-{{connector:version}}.jar'
+     archive: 'connectors/pulsar-io-bigquery-2.10.1.3.jar'
      className: org.apache.pulsar.ecosystem.io.bigquery.BigQuerySink
      tenant: public
      namespace: default
@@ -227,7 +227,7 @@ kind: Sink
 metadata:
   name: google-bigquery-sink-sample
 spec:
-  image: streamnative/pulsar-io-bigquery:{{connector:version}}
+  image: streamnative/pulsar-io-bigquery:2.10.1.3
   className: org.apache.pulsar.ecosystem.io.bigquery.BigQuerySink
   replicas: 1
   maxReplicas: 1
@@ -249,7 +249,7 @@ spec:
     cpu: "0.1"
     memory: 1G
   java:
-    jar: connectors/pulsar-io-bigquery-{{connector:version}}.jar
+    jar: connectors/pulsar-io-bigquery-2.10.1.3.jar
   clusterName: test-pulsar
   autoAck: false
 ```
@@ -273,14 +273,14 @@ You can use the Google Cloud BigQuery sink connector with Function Worker or Fun
     ```
     PULSAR_HOME/bin/pulsar-admin sinks localrun \
     --sink-config-file <google-bigquery-sink-config.yaml>
-    --archive <pulsar-io-bigquery-{{connector:version}}.jar>
+    --archive <pulsar-io-bigquery-2.10.1.3.jar>
     ```
 
     Or, you can create a connector for the Pulsar cluster.
     ```
     PULSAR_HOME/bin/pulsar-admin sinks create \
     --sink-config-file <google-bigquery-sink-config.yaml>
-    --archive <pulsar-io-bigquery-{{connector:version}}.jar>
+    --archive <pulsar-io-bigquery-2.10.1.3.jar>
     ```
 
 3. Send messages to a Pulsar topic.
@@ -320,7 +320,7 @@ This example describes how to create a Google Cloud BigQuery sink connector for 
    metadata:
      name: google-bigquery-sink-sample
    spec:
-     image: streamnative/pulsar-io-bigquery:{{connector:version}}
+     image: streamnative/pulsar-io-bigquery:2.10.1.3
      className: org.apache.pulsar.ecosystem.io.bigquery.BigQuerySink
      replicas: 1
      maxReplicas: 1
@@ -342,7 +342,7 @@ This example describes how to create a Google Cloud BigQuery sink connector for 
        cpu: "0.1"
        memory: 1G
      java:
-       jar: connectors/pulsar-io-bigquery-{{connector:version}}.jar
+       jar: connectors/pulsar-io-bigquery-2.10.1.3.jar
      clusterName: test-pulsar
      autoAck: false
    ```
